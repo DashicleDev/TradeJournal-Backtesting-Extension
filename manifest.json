@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Trade Journal for TradingView",
+  "short_name": "Trade Journal",
+  "version": "0.1.0",
+  "description": "Log backtest trades from TradingView bar replay straight into your Trade Journal: analysis, result and W/D/4H snapshots.",
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "action": { "default_title": "Trade Journal: show or hide the panel", "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" } },
+  "background": { "service_worker": "bg.js" },
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://*.tradingview.com/*",
+    "https://hmkikstwphyiwxtjlejt.supabase.co/*",
+    "https://dashicledev.github.io/*"
+  ],
+  "content_scripts": [
+    { "matches": ["https://*.tradingview.com/chart/*"], "js": ["hook.js"], "world": "MAIN", "run_at": "document_start" },
+    { "matches": ["https://*.tradingview.com/chart/*"], "js": ["plan-default.js", "content.js"], "run_at": "document_idle" }
+  ]
+}

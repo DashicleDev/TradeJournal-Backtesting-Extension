@@ -1,0 +1,64 @@
+// Runs inside the TradingView page (MAIN world). It only watches for TradingView's
+// own snapshot links being created or copied, and hands them to the panel.
+// It never sends anything anywhere else.
+(() => {
+  if (window.__tjHook) return; window.__tjHook = true;
+  const ID = /^[A-Za-z0-9]{6,12}$/;
+  const fromText = (t) => {
+    if (typeof t !== "string") return null;
+    const m = /tradingview\.com\/x\/([A-Za-z0-9]{6,12})/.exec(t);
+    if (m) return m[1];
+    const s = t.trim().replace(/^"|"$/g, "");
+    return ID.test(s) ? s : null;
+  };
+  const fromJson = (t) => {
+    try { const j = JSON.parse(t); for (const k of ["id", "uid", "snapshot_id", "url"]) { const v = j && j[k]; const x = typeof v === "string" && (fromText(v) || (ID.test(v) ? v : null)); if (x) return x; } } catch {}
+    return null;
+  };
+  const found = (id, via) => { if (id) window.postMessage({ __tj: "snap", id, via }, location.origin); };
+  const isSnap = (u) => /\/snapshot\/?(\?|$)/.test(String(u || ""));
+
+  const of = window.fetch;
+  window.fetch = async function (input, init) {
+    const res = await of.apply(this, arguments);
+    try {
+      const url = typeof input === "string" ? input : input && input.url;
+      const method = ((init && init.method) || (input && input.method) || "GET").toUpperCase();
+      if (method === "POST" && isSnap(url)) res.clone().text().then((t) => found(fromJson(t) || fromText(t), "fetch")).catch(() => {});
+    } catch {}
+    return res;
+  };
+
+  const oo = XMLHttpRequest.prototype.open, os = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function (m, u) { this.__tj = { m: String(m).toUpperCase(), u }; return oo.apply(this, arguments); };
+  XMLHttpRequest.prototype.send = function () {
+    if (this.__tj && this.__tj.m === "POST" && isSnap(this.__tj.u)) {
+      this.addEventListener("load", () => { try { const t = this.responseText; found(fromJson(t) || fromText(t), "xhr"); } catch {} });
+    }
+    return os.apply(this, arguments);
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    const ow = navigator.clipboard.writeText.bind(navigator.clipboard);
+    navigator.clipboard.writeText = (t) => { const id = /tradingview\.com\/x\//.test(t || "") && fromText(t); if (id) found(id, "clipboard"); return ow(t); };
+  }
+  document.addEventListener("copy", () => {
+    setTimeout(() => { const sel = String(document.getSelection() || ""), el = document.activeElement, v = (el && "value" in el && el.value) || ""; const id = /tradingview\.com\/x\//.test(sel + v) && fromText(sel + " " + v); if (id) found(id, "copy"); }, 0);
+  }, true);
+
+  // The panel asks for the current symbol / interval / replay date; we read what we can.
+  window.addEventListener("message", (e) => {
+    if (e.source !== window || !e.data || e.data.__tj !== "ask") return;
+    const out = {};
+    try {
+      const qs = new URLSearchParams(location.search);
+      const sym = qs.get("symbol") || (document.title.split(" ")[0] || "");
+      out.symbol = sym;
+      const iv = document.querySelector('#header-toolbar-intervals [aria-checked="true"], #header-toolbar-intervals button[aria-pressed="true"], [data-name="intervals"] [class*="isActive"], #header-toolbar-intervals button');
+      out.interval = (iv && (iv.getAttribute("data-value") || iv.textContent || "").trim()) || qs.get("interval") || "";
+      const rp = [...document.querySelectorAll('[class*="replay"] *, [data-name*="replay"] *')].map((n) => n.childElementCount ? "" : (n.textContent || "").trim()).find((t) => /\b\d{1,2}\s\w{3}\s'?\d{2,4}\b|\d{4}-\d{2}-\d{2}/.test(t));
+      out.replay = rp || "";
+    } catch {}
+    window.postMessage({ __tj: "info", ...out }, location.origin);
+  });
+})();
