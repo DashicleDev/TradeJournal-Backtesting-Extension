@@ -11,7 +11,7 @@
   const tvImg = (id) => id ? `https://s3.tradingview.com/snapshots/${id[0].toLowerCase()}/${id}.png` : "";
   const SLOTS = [["weekly", "Weekly"], ["daily", "Daily"], ["h4", "4H"], ["ltf", "1H/2H"]];
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
-  let lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
+  let dd = null, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
   const blank = () => ({ project: "", pair: "", date: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "" });
   let D = blank(), collapsed = {};
 
@@ -135,11 +135,12 @@
         <div class="row2">${f("Ranging", `<div class="segs"><button type="button" class="sg${D.wRange ? " on" : ""}" data-tog="wRange">↔ Ranging</button></div>`)}
           ${f("Weekly pattern", sel("wPat", ["Continuation", "Reversal", "Pattern in Pattern"], D.wPat, "No pattern"))}</div>
         ${D.wPat && D.wPat !== "Reversal" ? f("Pattern variant", sel("wPatSub", P.plan.concepts[D.wPat] || [], D.wPatSub, "Not set")) : ""}
-        ${f("Pros / cons <em>tap: pro → con → off</em>", `<div class="chips">${wc.map(([k, l]) => `<button type="button" class="chip ${D.w[k] || ""}" data-wc="${k}">${D.w[k] === "for" ? "✓ " : D.w[k] === "against" ? "✗ " : ""}${esc(l)}</button>`).join("")}</div>`)}`)}
+        <div class="row2">${["for", "against"].map((side) => { const lab = side === "for" ? "Pros" : "Cons", sel = wc.filter(([k]) => D.w[k] === side), rest = wc.filter(([k]) => !D.w[k]);
+          return f(lab, `<div class="ms ${side}"><div class="msbox" data-dd="${side}">${sel.map(([k, l]) => `<span class="mchip ${side}">${esc(l)}<button type="button" data-unw="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose criteria…</span>`}<i>▾</i></div>${dd === side ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addw="${k}" data-side="${side}">${esc(l)}</button>`).join("") : `<span class="msph">All criteria used</span>`}</div>` : ""}</div>`); }).join("")}</div>`)}
       ${sec("d", "Daily", dsum, `
         ${(() => { const v = P.plan.concepts[D.concept] || [], none = !D.concept || D.concept === "Weekly - 4H" || !v.length || (v.length === 1 && v[0] === "—"); return `<div class="row2">${f("Trade concept", sel("concept", fc, D.concept, "Choose…"))}${none ? "" : f("Variant", sel("sub", v, D.sub, "Choose…"))}</div>`; })()}
         ${f("Market structure", seg("dMs", MS, D.dMs))}
-        ${f("Daily pros", `<div class="chips">${P.dcrit.map(([k, l]) => `<button type="button" class="chip ${D.dPros.includes(k) ? "for" : ""}" data-dp="${k}">${D.dPros.includes(k) ? "✓ " : ""}${esc(l)}</button>`).join("")}</div>`)}`)}
+        ${f("Daily pros", (() => { const sel = P.dcrit.filter(([k]) => D.dPros.includes(k)), rest = P.dcrit.filter(([k]) => !D.dPros.includes(k)); return `<div class="ms for"><div class="msbox" data-dd="dpros">${sel.map(([k, l]) => `<span class="mchip for">${esc(l)}<button type="button" data-und="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose criteria…</span>`}<i>▾</i></div>${dd === "dpros" ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addd="${k}">${esc(l)}</button>`).join("") : `<span class="msph">All criteria used</span>`}</div>` : ""}</div>`; })())}`)}
       ${sec("h", "4H", hsum, `
         <div class="row2">${f("4H entry", sel("entry4h", P.plan.entries, D.entry4h, "Choose…"))}${f("Market structure", seg("hMs", MS, D.hMs))}</div>
         ${hasStruct(D.entry4h) ? `<div class="row2">${f("4H structure", seg("struct", [["bos", "BoS"], ["som", "SoM"]], D.struct))}${D.struct === "som" ? f("Room", `<div class="segs"><button type="button" class="sg${D.room ? " on" : ""}" data-tog="room">Room</button></div>`) : ""}</div>` : ""}
@@ -165,6 +166,9 @@
     catch (er) { msg = er.message; } busy = false; render();
   });
   root.addEventListener("click", async (e) => {
+    const box = e.target.closest("[data-dd]");
+    if (box && !e.target.closest("[data-unw],[data-und]")) { dd = dd === box.dataset.dd ? null : box.dataset.dd; return render(); }
+    if (dd && !e.target.closest(".mslist")) { dd = null; render(); }
     const t = e.target.closest("button"); if (!t) return;
     const d = t.dataset;
     if (d.act === "hide") return toggle(false);
@@ -176,7 +180,10 @@
     if (d.arm) return arm(d.arm);
     if (d.rm) { delete D.links[d.rm]; keep(); return render(); }
     if (d.tog) { D[d.tog] = !D[d.tog]; keep(); return render(); }
-    if (d.wc) { const v = D.w[d.wc]; if (!v) D.w[d.wc] = "for"; else if (v === "for") D.w[d.wc] = "against"; else delete D.w[d.wc]; keep(); return render(); }
+    if (d.addw) { D.w[d.addw] = d.side; dd = null; keep(); return render(); }
+    if (d.unw) { delete D.w[d.unw]; keep(); return render(); }
+    if (d.addd) { if (!D.dPros.includes(d.addd)) D.dPros = [...D.dPros, d.addd]; dd = null; keep(); return render(); }
+    if (d.und) { D.dPros = D.dPros.filter((x) => x !== d.und); keep(); return render(); }
     if (d.dp) { D.dPros = D.dPros.includes(d.dp) ? D.dPros.filter((x) => x !== d.dp) : [...D.dPros, d.dp]; keep(); return render(); }
     if (d.k) { D[d.k] = D[d.k] === d.v ? "" : d.v; if (d.k === "fase" && D.concept && !(P.plan.faseConcepts[D.fase] || []).includes(D.concept)) { D.concept = ""; D.sub = ""; }
       if (d.k === "outcome" && d.v === "be" && D.r === "") D.r = "0"; keep(); return render(); }
@@ -214,7 +221,7 @@
   .body{overflow-y:auto;overflow-x:hidden;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
   .login{display:grid;gap:10px}.login p{margin:0;color:#aab0c6;line-height:1.45}
   .f{display:grid;gap:4px;min-width:0}.f>span{font-size:11px;font-weight:600;color:#8d94ad}.f>span em{font-weight:400;font-style:normal;opacity:.8;margin-left:4px}
-  .row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}.row3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end}
+  .row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:start}.row3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end}
   input,select,textarea{width:100%;font-size:13px;color:#e8ebf5;background:#0b0e17;border:1px solid #2a3046;border-radius:7px;padding:6px 8px;outline:none}
   input:focus,select:focus,textarea:focus{border-color:#7c8cff}textarea{resize:vertical}
   .segs{display:flex;flex-wrap:wrap;gap:4px}
@@ -225,6 +232,12 @@
   .sh b{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:#aab0c6}.sh em{font-style:normal;color:#e8ebf5;font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sh i{font-style:normal;color:#8d94ad}
   .sec{min-width:0}.sb{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;padding:2px 10px 10px}
   .chips{display:flex;flex-wrap:wrap;gap:4px}
+  .ms{position:relative}.msbox{min-height:34px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:4px 22px 4px 5px;border:1px solid #2a3046;border-radius:7px;background:#0b0e17;cursor:pointer;position:relative}
+  .msbox i{position:absolute;right:7px;top:50%;transform:translateY(-50%);font-style:normal;color:#8d94ad;font-size:11px}.msph{color:#8d94ad;font-size:12.5px;padding:2px 3px}
+  .mchip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 3px 2px 7px;font-size:12px}.mchip.for{background:rgba(59,189,133,.18);color:#7fe0b4}.mchip.against{background:rgba(229,83,75,.16);color:#ff9a93}
+  .mchip button{background:none;border:0;color:inherit;cursor:pointer;font-size:13px;line-height:1;padding:0 3px}
+  .mslist{position:absolute;z-index:5;left:0;right:0;top:calc(100% + 3px);background:#161b2b;border:1px solid #2a3046;border-radius:8px;padding:4px;display:grid;box-shadow:0 10px 30px rgba(0,0,0,.4);max-height:220px;overflow:auto}
+  .mslist button{background:none;border:0;color:#e8ebf5;text-align:left;padding:7px 9px;border-radius:6px;font-size:13px;cursor:pointer}.mslist button:hover{background:#222a40}
   .chip{border:1px solid #2a3046;background:#0b0e17;color:#cfd4e6;border-radius:999px;padding:4px 9px;font-size:12px;cursor:pointer}
   .chip.for{background:rgba(59,189,133,.18);border-color:#3bbd85;color:#7fe0b4}.chip.against{background:rgba(229,83,75,.16);border-color:#e5534b;color:#ff9a93}
   .hint{margin:0;color:#8d94ad;font-size:12px;line-height:1.4}
