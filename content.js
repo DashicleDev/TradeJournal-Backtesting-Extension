@@ -131,7 +131,7 @@
     const csum = SLOTS.filter(([k]) => D.links[k]).map(([, l]) => l).join(" · ") || "none yet";
     const rsum = [D.outcome && ({ win: "Win", be: "BE", loss: "Loss" })[D.outcome], D.r !== "" && D.r + "R", D.evaluation && (D.evaluation === "plan" ? "To plan" : "Not to plan")].filter(Boolean).join(" · ");
     const pj = projects.find((p) => p.id === D.project);
-    panel.innerHTML = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>
+    panel.innerHTML = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>
     <div class="body">
       ${f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`)}
       <div class="row2">${f(`Pair <button type="button" class="lnk inl" data-act="read" title="Read pair and replay date from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" list="tjpairs" autocomplete="off"><datalist id="tjpairs">${String((pj && pj.pairs) || "").split(/[\s,]+/).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`)}
@@ -183,6 +183,7 @@
     if (d.act === "hide") { mini = true; store({ mini }); return render(); }
     if (d.act === "expand") { mini = false; store({ mini }); return render(); }
     if (d.act === "close") return toggle(false);
+    if (d.act === "reload") { clearTimeout(saveT); await store({ draft: D }); chrome.runtime.sendMessage({ type: "reload" }); return; }
     if (d.act === "logout") { await call("logout"); user = null; msg = ""; return render(); }
     if (d.act === "save") return save();
     if (d.act === "clear") { const pj = D.project; D = { ...blank(), project: pj }; msg = ""; keep(); return render(); }

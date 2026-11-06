@@ -61,7 +61,8 @@ const handlers = {
   }
 };
 
-chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+chrome.runtime.onMessage.addListener((msg, sender, reply) => {
+  if (msg && msg.type === "reload") { set({ reloadTab: sender.tab && sender.tab.id }).then(() => chrome.runtime.reload()); return false; }
   const h = handlers[msg && msg.type];
   if (!h) return false;
   h(msg).then((v) => reply({ ok: true, v }), (e) => reply({ ok: false, error: String((e && e.message) || e) }));
@@ -72,4 +73,10 @@ chrome.action.onClicked.addListener((tab) => {
   if (tab && tab.id) chrome.tabs.sendMessage(tab.id, { type: "toggle" }).catch(() => {
     chrome.tabs.create({ url: "https://www.tradingview.com/chart/" });
   });
+});
+
+// After a reload, refresh the TradingView tab that asked for it so it runs the new version.
+chrome.runtime.onInstalled.addListener(async () => {
+  const id = await get("reloadTab");
+  if (id) { await chrome.storage.local.remove("reloadTab"); chrome.tabs.reload(id).catch(() => {}); }
 });

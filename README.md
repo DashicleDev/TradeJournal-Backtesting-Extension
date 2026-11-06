@@ -21,7 +21,7 @@ The field lists come from the journal's `plan.json`, so new options show up here
 4. Click **Load unpacked** and pick the unzipped folder.
 5. Open a TradingView chart. Click the **TJ** button (bottom right), or the extension icon, and sign in with your journal account.
 
-To update: replace the folder with the new version and click **Reload** on the extension.
+To update: replace the folder with the new version (or `git pull` if you cloned it) and click **⟳** in the panel. It reloads the extension and the chart tab.
 
 ## Using it in bar replay
 
