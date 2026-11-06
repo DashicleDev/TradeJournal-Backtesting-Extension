@@ -12,7 +12,7 @@
   const SLOTS = [["weekly", "Weekly"], ["daily", "Daily"], ["h4", "4H"], ["ltf", "1H/2H"]];
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
   let dd = null, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
-  const blank = () => ({ project: "", pair: "", date: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "" });
+  const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "" });
   let D = blank(), collapsed = {};
 
   /* ---------- storage ---------- */
@@ -80,7 +80,7 @@
     const st = hasStruct(D.entry4h) ? D.struct : "", bos = st === "bos", som = st === "som", num = (v) => v === "" || v == null || isNaN(+v) ? null : +v;
     let r = num(D.r); if (r != null && D.outcome === "loss" && r > 0) r = -r; if (r != null && D.outcome === "win" && r < 0) r = -r; if (D.outcome === "be" && r == null) r = 0;
     return { id: uid(), mode: "backtest", market: "fx", project: D.project || null, status: "taken", account: "", btDate: new Date().toISOString().slice(0, 10),
-      date: D.date, closeDate: "", concept: D.concept, fase: D.fase ? +D.fase : null, wStruct: D.wStruct, wPat: D.wPat, wPatSub: D.wPat ? D.wPatSub : "", wRange: !!D.wRange,
+      date: D.date, closeDate: D.closeDate, concept: D.concept, fase: D.fase ? +D.fase : null, wStruct: D.wStruct, wPat: D.wPat, wPatSub: D.wPat ? D.wPatSub : "", wRange: !!D.wRange,
       scaleIn: !!D.scaleIn, dMs: D.dMs, hMs: D.hMs, weekly, sub: D.concept === "Weekly - 4H" ? "" : D.sub, dPros: D.dPros.slice(), dailyFib: D.dPros.includes("fc") ? "ja" : "nee",
       outcome: D.outcome, r, maxR: num(D.maxR), notes: D.notes.trim(), evaluation: D.evaluation, onPlan: D.evaluation ? D.evaluation === "plan" : null, exitReason: D.exit,
       entry4h: D.entry4h, planEntry: null, slPips: null, tpPips: null, struct: st, bos: bos ? "ja" : som ? "nee" : "", dfs: "", som: som && D.entry4h === "Reversal" ? "ja" : "", room: som ? (D.room ? "ja" : "nee") : "",
@@ -150,6 +150,7 @@
         <div class="shots">${SLOTS.map(([k, l]) => `<div class="shot${armed === k ? " armed" : ""}">${D.links[k] ? `<img src="${tvImg(D.links[k].match(/x\/([^/]+)/)[1])}" alt="${l} chart"><button type="button" class="rm" data-rm="${k}" title="Remove">×</button>` : `<div class="ph"></div>`}<button type="button" class="btn sm${armed === k ? " pri" : ""}" data-arm="${k}">📷 ${l}</button></div>`).join("")}</div>`)}
       ${sec("r", "Result", rsum, `
         ${f("Outcome", seg("outcome", [["win", "Win"], ["be", "BE"], ["loss", "Loss"]], D.outcome))}
+        ${f(`Close date <button type="button" class="lnk inl" data-act="readclose" title="Use the replay date on the chart">⟳ from chart</button>`, `<input type="date" data-k="closeDate" value="${esc(D.closeDate)}" min="${esc(D.date)}">`)}
         <div class="row2">${f("Result (R)", `<input type="number" step="any" data-k="r" value="${esc(D.r)}">`)}${f("Max R reached", `<input type="number" step="any" min="0" data-k="maxR" value="${esc(D.maxR)}">`)}</div>
         ${f("Exit", sel("exit", P.plan.exits.filter((x) => x !== "Invalid, cancelled"), D.exit, "Choose…"))}
         ${f("According to plan?", seg("evaluation", [["plan", "Yes"], ["off", "No"]], D.evaluation))}
@@ -175,6 +176,7 @@
     if (d.act === "logout") { await call("logout"); user = null; msg = ""; return render(); }
     if (d.act === "save") return save();
     if (d.act === "clear") { const pj = D.project; D = { ...blank(), project: pj }; msg = ""; keep(); return render(); }
+    if (d.act === "readclose") { await ask(); const dt = dateOf(info.replay); if (dt) D.closeDate = dt; msg = dt ? "" : "Couldn't read the replay date, so fill it in yourself."; keep(); return render(); }
     if (d.act === "read") { await ask(); if (info.symbol) D.pair = pairOf(info.symbol); const dt = dateOf(info.replay); if (dt) D.date = dt; msg = dt ? "" : "Couldn't read the replay date, so fill it in yourself."; keep(); return render(); }
     if (d.sec) { collapsed[d.sec] = !collapsed[d.sec]; store({ collapsed }); return render(); }
     if (d.arm) return arm(d.arm);
