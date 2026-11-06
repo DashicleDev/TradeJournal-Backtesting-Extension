@@ -25,10 +25,16 @@ To update: replace the folder with the new version (or `git pull` if you cloned 
 
 ## Using it in bar replay
 
-1. Pick the project, check pair and date (⟳ from chart fills them in).
-2. Fill in the analysis.
-3. For each timeframe: switch the chart, then tap its 📷. The snapshot appears in the panel.
-4. Fill in the result and **Save trade**. The pair and project stay, so the next trade is quick.
+Click the logo. The panel walks you through the trade:
+
+1. **Trade**: project, pair, date and direction (pair and replay date are read from the chart).
+2. **Weekly**: the chart switches to 1W. Position it, fill in the weekly analysis, click **📷 Continue**.
+   It grabs the chart and switches to the next timeframe.
+3. **Daily** (1D), **4H** (240) and, for an Engulfing Candle entry, **1H/2H**: the same.
+4. **Result**: fill it in and **Save trade**. It starts again at step 1 with the pair kept.
+
+**Back** or the step tabs go to an earlier step (the chart switches back too).
+**☰** shows all fields on one page instead.
 
 ## Privacy
 

@@ -13,11 +13,11 @@
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
   let dd = null, mini = false, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
   const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "" });
-  let D = blank(), collapsed = {};
+  let D = blank(), collapsed = {}, view = "steps", step = 0, snapWait = null;
 
   /* ---------- storage ---------- */
   const store = (o) => chrome.storage.local.set(o);
-  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini"]); mini = !!o.mini; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
+  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step"]); mini = !!o.mini; view = o.view || "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
   let saveT; const keep = () => { clearTimeout(saveT); saveT = setTimeout(() => store({ draft: D }), 250); };
 
   /* ---------- shell ---------- */
@@ -36,7 +36,7 @@
   pill.addEventListener("pointerup", () => { if (!pd) return; const m = pd.moved; pd = null; if (m) store({ pillPos: { left: pill.style.left, top: pill.style.top } }); else toggle(true); });
   chrome.storage.local.get("pillPos").then((o) => { if (o.pillPos && o.pillPos.left) Object.assign(pill.style, { left: o.pillPos.left, top: o.pillPos.top, right: "auto", bottom: "auto" }); });
   chrome.runtime.onMessage.addListener((m) => { if (m && m.type === "toggle") toggle(!open); });
-  function toggle(v) { open = v; store({ open }); panel.hidden = !open; pill.hidden = open; if (open) render(); }
+  function toggle(v) { open = v; store({ open }); panel.hidden = !open; pill.hidden = open; if (open) { if (view === "steps" && user && !mini) startSteps(); else render(); } }
 
   // drag by header
   let drag = null;
@@ -62,7 +62,9 @@
     if (!slot) { await ask(); slot = slotOf(info.interval); }
     if (!slot) { msg = `Snapshot caught, but which timeframe? Pick a 📷 button first, then take it again.`; return render(); }
     D.links[slot] = "https://www.tradingview.com/x/" + e.data.id + "/"; armed = null; clearTimeout(armTimer);
-    msg = `${SLOTS.find((s) => s[0] === slot)[1]} chart saved.`; keep(); render();
+    msg = `${SLOTS.find((s) => s[0] === slot)[1]} chart saved.`; keep();
+    if (snapWait && snapWait.slot === slot) { const w = snapWait; snapWait = null; w.done(true); return; }
+    render();
   });
   function trySnapshot() {
     // TradingView's own shortcut for "Copy link to the chart image". If it doesn't fire,
@@ -77,6 +79,32 @@
       armTimer = setTimeout(() => { if (armed === slot) { msg = `Press Alt+S on the chart (or camera → Copy link). It goes to ${SLOTS.find((s) => s[0] === slot)[1]}.`; render(); } }, 3500); }
     else msg = "";
     render();
+  }
+
+  /* ---------- step by step ---------- */
+  // ask the page to switch the chart's timeframe (hook.js does it through TradingView's own API)
+  const setTf = (res) => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "tfok") { removeEventListener("message", f); done(e.data.ok); } }; addEventListener("message", f); window.postMessage({ __tj: "tf", res }, location.origin); setTimeout(() => { removeEventListener("message", f); done(false); }, 1500); });
+  const steps = () => [["setup", "Trade"], ["weekly", "Weekly", "1W"], ["daily", "Daily", "1D"], ["h4", "4H", "240"],
+    ...(D.entry4h === "Engulfing Candle" ? [["ltf", D.ecTf === "1h" ? "1H" : "2H", D.ecTf === "1h" ? "60" : "120"]] : []), ["result", "Result"]];
+  const curStep = () => { const L = steps(); if (step >= L.length) step = L.length - 1; return L[step]; };
+  const snapFor = (slot) => new Promise((done) => { snapWait = { slot, done }; armed = slot; clearTimeout(armTimer); trySnapshot(); setTimeout(() => { if (snapWait && snapWait.slot === slot) { snapWait = null; armed = null; done(false); } }, 6000); });
+  async function goStep(i) {
+    step = Math.max(0, Math.min(steps().length - 1, i)); store({ step }); dd = null;
+    const s = curStep(); if (s[2]) { msg = ""; render(); const ok = await setTf(s[2]); msg = ok ? "" : `Switch the chart to ${s[1]} yourself.`; }
+    render();
+  }
+  async function startSteps() {
+    await ask(); if (!D.pair && info.symbol) D.pair = pairOf(info.symbol); if (!D.date) { const dt = dateOf(info.replay); if (dt) D.date = dt; } keep();
+    await goStep(D.pair && D.date && D.dir ? Math.max(step, 1) : 0);
+  }
+  async function next() {
+    const s = curStep();
+    if (s[0] === "setup") { const miss = missing(); if (miss.length) { msg = "Still needed: " + miss.join(", ") + "."; return render(); } return goStep(step + 1); }
+    if (s[0] === "result") return save();
+    busy = true; msg = `Grabbing the ${s[1]} chart…`; render();
+    const ok = await snapFor(s[0]); busy = false;
+    if (!ok) { msg = `The ${s[1]} snapshot didn't come through. Press Alt+S on the chart, or continue without it.`; s.failed = true; return render(); }
+    return goStep(step + 1);
   }
 
   /* ---------- doc ---------- */
@@ -98,7 +126,7 @@
     busy = true; render();
     try { const doc = toDoc(); await call("save", { doc }); const pj = D.project, pr = D.pair;
       D = { ...blank(), project: pj, pair: pr }; store({ draft: D, lastProject: pj });
-      msg = `Saved ${doc.pair} ${doc.dir} to ${(projects.find((p) => p.id === pj) || {}).name || "Backtest"}.`; }
+      msg = `Saved ${doc.pair} ${doc.dir} to ${(projects.find((p) => p.id === pj) || {}).name || "Backtest"}.`; if (view === "steps") { step = 0; store({ step }); } }
     catch (e) { msg = "Couldn't save: " + e.message; }
     busy = false; render();
   }
@@ -131,40 +159,58 @@
     const csum = SLOTS.filter(([k]) => D.links[k]).map(([, l]) => l).join(" · ") || "none yet";
     const rsum = [D.outcome && ({ win: "Win", be: "BE", loss: "Loss" })[D.outcome], D.r !== "" && D.r + "R", D.evaluation && (D.evaluation === "plan" ? "To plan" : "Not to plan")].filter(Boolean).join(" · ");
     const pj = projects.find((p) => p.id === D.project);
-    panel.innerHTML = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>
-    <div class="body">
-      ${f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`)}
+    const B = { setup: () => `      ${f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`)}
       <div class="row2">${f(`Pair <button type="button" class="lnk inl" data-act="read" title="Read pair and replay date from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" list="tjpairs" autocomplete="off"><datalist id="tjpairs">${String((pj && pj.pairs) || "").split(/[\s,]+/).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`)}
         ${f("Entry date", `<input type="date" data-k="date" value="${esc(D.date)}">`)}</div>
-      ${f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir))}
-      ${sec("w", "Weekly", wsum, `
+      ${f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir))}`, weekly: () => `
         <div class="row2">${f("Phase", seg("fase", [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]], String(D.fase)))}${f("Inner / outer", seg("wStruct", [["inner", "Inner"], ["outer", "Outer"]], D.wStruct))}</div>
         <div class="row2">${f("Market trend", seg("trend", MS, D.trend))}${f("Market structure", seg("ms", MS, D.ms))}</div>
         <div class="row2">${f("Ranging", `<div class="segs"><button type="button" class="sg${D.wRange ? " on" : ""}" data-tog="wRange">↔ Ranging</button></div>`)}
           ${f("Weekly pattern", sel("wPat", ["Continuation", "Reversal", "Pattern in Pattern"], D.wPat, "No pattern"))}</div>
         ${D.wPat && D.wPat !== "Reversal" ? f("Pattern variant", sel("wPatSub", P.plan.concepts[D.wPat] || [], D.wPatSub, "Not set")) : ""}
         <div class="row2">${["for", "against"].map((side) => { const lab = side === "for" ? "Pros" : "Cons", sel = wc.filter(([k]) => D.w[k] === side), rest = wc.filter(([k]) => !D.w[k]);
-          return f(lab, `<div class="ms ${side}"><div class="msbox" data-dd="${side}">${sel.map(([k, l]) => `<span class="mchip ${side}">${esc(l)}<button type="button" data-unw="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose criteria…</span>`}<i>▾</i></div>${dd === side ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addw="${k}" data-side="${side}">${esc(l)}</button>`).join("") : `<span class="msph">All criteria used</span>`}</div>` : ""}</div>`); }).join("")}</div>`)}
-      ${sec("d", "Daily", dsum, `
+          return f(lab, `<div class="ms ${side}"><div class="msbox" data-dd="${side}">${sel.map(([k, l]) => `<span class="mchip ${side}">${esc(l)}<button type="button" data-unw="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose criteria…</span>`}<i>▾</i></div>${dd === side ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addw="${k}" data-side="${side}">${esc(l)}</button>`).join("") : `<span class="msph">All criteria used</span>`}</div>` : ""}</div>`); }).join("")}</div>`, daily: () => `
         ${(() => { const v = P.plan.concepts[D.concept] || [], none = !D.concept || D.concept === "Weekly - 4H" || !v.length || (v.length === 1 && v[0] === "—"); return `<div class="row2">${f("Trade concept", sel("concept", fc, D.concept, "Choose…"))}${none ? "" : f("Variant", sel("sub", v, D.sub, "Choose…"))}</div>`; })()}
         ${f("Market structure", seg("dMs", MS, D.dMs))}
-        ${f("Daily pros", (() => { const sel = P.dcrit.filter(([k]) => D.dPros.includes(k)), rest = P.dcrit.filter(([k]) => !D.dPros.includes(k)); return `<div class="ms for"><div class="msbox" data-dd="dpros">${sel.map(([k, l]) => `<span class="mchip for">${esc(l)}<button type="button" data-und="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose criteria…</span>`}<i>▾</i></div>${dd === "dpros" ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addd="${k}">${esc(l)}</button>`).join("") : `<span class="msph">All criteria used</span>`}</div>` : ""}</div>`; })())}`)}
-      ${sec("h", "4H", hsum, `
+        ${f("Daily pros", (() => { const sel = P.dcrit.filter(([k]) => D.dPros.includes(k)), rest = P.dcrit.filter(([k]) => !D.dPros.includes(k)); return `<div class="ms for"><div class="msbox" data-dd="dpros">${sel.map(([k, l]) => `<span class="mchip for">${esc(l)}<button type="button" data-und="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose criteria…</span>`}<i>▾</i></div>${dd === "dpros" ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addd="${k}">${esc(l)}</button>`).join("") : `<span class="msph">All criteria used</span>`}</div>` : ""}</div>`; })())}`, h4: () => `
         <div class="row2">${f("4H entry", sel("entry4h", P.plan.entries, D.entry4h, "Choose…"))}${f("Market structure", seg("hMs", MS, D.hMs))}</div>
         ${hasStruct(D.entry4h) ? `<div class="row2">${f("4H structure", seg("struct", [["bos", "BoS"], ["som", "SoM"]], D.struct))}${D.struct === "som" ? f("Room", `<div class="segs"><button type="button" class="sg${D.room ? " on" : ""}" data-tog="room">Room</button></div>`) : ""}</div>` : ""}
         ${D.entry4h === "Engulfing Candle" ? f("Reversal on", seg("ecTf", [["1h", "1 hour"], ["2h", "2 hour"]], D.ecTf)) : ""}
-        ${f("Scale-in", `<div class="segs"><button type="button" class="sg${D.scaleIn ? " on" : ""}" data-tog="scaleIn">Scale-in</button></div>`)}`)}
-      ${sec("c", "Charts", csum, `<p class="hint">Set the chart to the timeframe, then tap its camera. Alt+S on the chart works too.</p>
-        <div class="shots">${SLOTS.map(([k, l]) => `<div class="shot${armed === k ? " armed" : ""}">${D.links[k] ? `<img src="${tvImg(D.links[k].match(/x\/([^/]+)/)[1])}" alt="${l} chart"><button type="button" class="rm" data-rm="${k}" title="Remove">×</button>` : `<div class="ph"></div>`}<button type="button" class="btn sm${armed === k ? " pri" : ""}" data-arm="${k}">📷 ${l}</button></div>`).join("")}</div>`)}
-      ${sec("r", "Result", rsum, `
+        ${f("Scale-in", `<div class="segs"><button type="button" class="sg${D.scaleIn ? " on" : ""}" data-tog="scaleIn">Scale-in</button></div>`)}`, result: () => `
         ${f("Outcome", seg("outcome", [["win", "Win"], ["be", "BE"], ["loss", "Loss"]], D.outcome))}
         ${f(`Close date <button type="button" class="lnk inl" data-act="readclose" title="Use the replay date on the chart">⟳ from chart</button>`, `<input type="date" data-k="closeDate" value="${esc(D.closeDate)}" min="${esc(D.date)}">`)}
         <div class="row2">${f("Result (R)", `<input type="number" step="any" data-k="r" value="${esc(D.r)}">`)}${f("Max R reached", `<input type="number" step="any" min="0" data-k="maxR" value="${esc(D.maxR)}">`)}</div>
         ${f("Exit", sel("exit", P.plan.exits.filter((x) => x !== "Invalid, cancelled"), D.exit, "Choose…"))}
         ${f("According to plan?", seg("evaluation", [["plan", "Yes"], ["off", "No"]], D.evaluation))}
-        ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}`)}
+        ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}`,
+      ltf: () => `<p class="hint">Find the reversal on the ${curStep()[1]}, then continue to grab the chart.</p>` };
+    const HEAD = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="view" title="${view === "steps" ? "Show all fields" : "Step by step"}">${view === "steps" ? "☰" : "▶"}</button><button type="button" class="x x2" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x x2" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`;
+    if (view === "steps") {
+      const L = steps(), s = curStep(), last = step === L.length - 1, link = s[2] && D.links[s[0]];
+      panel.innerHTML = `${HEAD}
+      <div class="stp">${L.map(([k, l], i) => `<button type="button" class="st${i === step ? " on" : ""}${i < step ? " done" : ""}" data-go="${i}">${esc(l)}</button>`).join("")}</div>
+      <div class="body">${s[2] ? `<p class="hint">Chart is on ${esc(s[1])}. Position it, fill this in, then Continue grabs the chart.</p>` : ""}${B[s[0]]()}
+        ${link ? `<div class="shot cur"><img src="${tvImg(link.match(/x\/([^/]+)/)[1])}" alt="${esc(s[1])} chart"><button type="button" class="rm" data-rm="${s[0]}" title="Remove">×</button></div>` : ""}</div>
+      <div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb">${step ? `<button type="button" class="btn ghost" data-act="back" ${busy ? "disabled" : ""}>Back</button>` : ""}<span class="sp"></span>
+        ${s.failed || (s[2] && msg && /didn't come/.test(msg)) ? `<button type="button" class="lnk" data-act="skip">Continue without chart</button>` : ""}
+        <button type="button" class="btn pri" data-act="next" ${busy ? "disabled" : ""}>${busy ? (last ? "Saving…" : "Grabbing…") : last ? "Save trade" : s[2] ? "📷 Continue" : "Continue"}</button></div>
+        ${step === 0 ? `<div class="fb"><button type="button" class="btn ghost sm" data-act="clear">Clear</button><span class="sp"></span><button type="button" class="lnk" data-act="logout" title="${esc(user.email)}">Sign out</button></div>` : ""}</div>`;
+    } else {
+    panel.innerHTML = `${HEAD}
+    <div class="body">
+      ${f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`)}
+      <div class="row2">${f(`Pair <button type="button" class="lnk inl" data-act="read" title="Read pair and replay date from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" list="tjpairs" autocomplete="off"><datalist id="tjpairs">${String((pj && pj.pairs) || "").split(/[\s,]+/).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`)}
+        ${f("Entry date", `<input type="date" data-k="date" value="${esc(D.date)}">`)}</div>
+      ${f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir))}
+      ${sec("w", "Weekly", wsum, B.weekly())}
+      ${sec("d", "Daily", dsum, B.daily())}
+      ${sec("h", "4H", hsum, B.h4())}
+      ${sec("c", "Charts", csum, `<p class="hint">Set the chart to the timeframe, then tap its camera. Alt+S on the chart works too.</p>
+        <div class="shots">${SLOTS.map(([k, l]) => `<div class="shot${armed === k ? " armed" : ""}">${D.links[k] ? `<img src="${tvImg(D.links[k].match(/x\/([^/]+)/)[1])}" alt="${l} chart"><button type="button" class="rm" data-rm="${k}" title="Remove">×</button>` : `<div class="ph"></div>`}<button type="button" class="btn sm${armed === k ? " pri" : ""}" data-arm="${k}">📷 ${l}</button></div>`).join("")}</div>`)}
+      ${sec("r", "Result", rsum, B.result())}
     </div>
     <div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb"><button type="button" class="btn pri" data-act="save" ${busy ? "disabled" : ""}>${busy ? "Saving…" : "Save trade"}</button><button type="button" class="btn ghost" data-act="clear">Clear</button><span class="sp"></span><button type="button" class="lnk" data-act="logout" title="${esc(user.email)}">Sign out</button></div></div>`;
+    }
     const b = panel.querySelector(".body"); if (b) b.scrollTop = top;
   }
 
@@ -172,7 +218,7 @@
   root.addEventListener("submit", async (e) => {
     e.preventDefault(); const fd = new FormData(e.target); lastEmail = fd.get("email") || ""; busy = true; msg = ""; render();
     try { user = await call("login", { email: fd.get("email"), password: fd.get("password") }); await boot(); }
-    catch (er) { msg = er.message; } busy = false; render();
+    catch (er) { msg = er.message; } busy = false; if (user && view === "steps") return startSteps(); render();
   });
   root.addEventListener("click", async (e) => {
     const box = e.target.closest("[data-dd]");
@@ -181,8 +227,13 @@
     const t = e.target.closest("button"); if (!t) return;
     const d = t.dataset;
     if (d.act === "hide") { mini = true; store({ mini }); return render(); }
-    if (d.act === "expand") { mini = false; store({ mini }); return render(); }
+    if (d.act === "expand") { mini = false; store({ mini }); if (view === "steps") return startSteps(); return render(); }
     if (d.act === "close") return toggle(false);
+    if (d.act === "view") { view = view === "steps" ? "form" : "steps"; store({ view }); msg = ""; if (view === "steps") return startSteps(); return render(); }
+    if (d.act === "next") return next();
+    if (d.act === "back") return goStep(step - 1);
+    if (d.act === "skip") { msg = ""; return goStep(step + 1); }
+    if (d.go) { const i = +d.go; if (i > step && curStep()[0] === "setup" && missing().length) { msg = "Still needed: " + missing().join(", ") + "."; return render(); } return goStep(i); }
     if (d.act === "reload") { clearTimeout(saveT); await store({ draft: D }); chrome.runtime.sendMessage({ type: "reload" }); return; }
     if (d.act === "logout") { await call("logout"); user = null; msg = ""; return render(); }
     if (d.act === "save") return save();
@@ -262,5 +313,8 @@
   .btn.sm{padding:5px 8px;font-size:12px}.btn.pri{background:#7c8cff;border-color:#7c8cff;color:#0b0e17}.btn.ghost{background:none}.btn:disabled{opacity:.6;cursor:default}
   .foot{border-top:1px solid #2a3046;padding:10px 12px;display:grid;gap:8px}.fb{display:flex;gap:8px;align-items:center}.sp{flex:1}
   .lnk{background:none;border:0;color:#8d94ad;font-size:12px;cursor:pointer;text-decoration:underline}.lnk.inl{font-size:11px;padding:0;margin-left:6px;color:#9aa6ff;text-decoration:none}
-  .msg{margin:0;font-size:12px;color:#c8cdf9;line-height:1.4}`; }
+  .msg{margin:0;font-size:12px;color:#c8cdf9;line-height:1.4}
+  .stp{display:flex;gap:3px;padding:8px 12px 0}.st{flex:1;min-width:0;border:0;border-bottom:2px solid #2a3046;background:none;color:#8d94ad;font-size:11px;font-weight:600;padding:4px 2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .st.done{color:#7fe0b4;border-color:#3bbd85}.st.on{color:#e8ebf5;border-color:#7c8cff}
+  .shot.cur img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:6px;border:1px solid #2a3046}`; }
 })();

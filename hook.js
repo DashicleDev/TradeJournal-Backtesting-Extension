@@ -46,6 +46,15 @@
     setTimeout(() => { const sel = String(document.getSelection() || ""), el = document.activeElement, v = (el && "value" in el && el.value) || ""; const id = /tradingview\.com\/x\//.test(sel + v) && fromText(sel + " " + v); if (id) found(id, "copy"); }, 0);
   }, true);
 
+  // The panel asks to switch the chart's timeframe (step by step logging).
+  window.addEventListener("message", (e) => {
+    if (e.source !== window || !e.data || e.data.__tj !== "tf") return;
+    const res = String(e.data.res || ""); let ok = false;
+    try { const api = window.TradingViewApi, ch = api && (api.activeChart ? api.activeChart() : api.chart && api.chart()); if (ch && ch.setResolution) { ch.setResolution(res); ok = true; } } catch {}
+    if (!ok) { const alt = { "1W": ["1W", "W"], "1D": ["1D", "D"] }[res] || [res]; const b = alt.map((v) => document.querySelector(`#header-toolbar-intervals [data-value="${v}"]`)).find(Boolean); if (b) { b.click(); ok = true; } }
+    window.postMessage({ __tj: "tfok", ok }, location.origin);
+  });
+
   // The panel asks for the current symbol / interval / replay date; we read what we can.
   window.addEventListener("message", (e) => {
     if (e.source !== window || !e.data || e.data.__tj !== "ask") return;
