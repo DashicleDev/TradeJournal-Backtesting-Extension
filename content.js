@@ -11,13 +11,13 @@
   const tvImg = (id) => id ? `https://s3.tradingview.com/snapshots/${id[0].toLowerCase()}/${id}.png` : "";
   const SLOTS = [["weekly", "Weekly"], ["daily", "Daily"], ["h4", "4H"], ["ltf", "1H/2H"]];
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
-  let dd = null, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
+  let dd = null, mini = false, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
   const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "" });
   let D = blank(), collapsed = {};
 
   /* ---------- storage ---------- */
   const store = (o) => chrome.storage.local.set(o);
-  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject"]); if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
+  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini"]); mini = !!o.mini; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
   let saveT; const keep = () => { clearTimeout(saveT); saveT = setTimeout(() => store({ draft: D }), 250); };
 
   /* ---------- shell ---------- */
@@ -106,9 +106,11 @@
   function render() { try { renderInner(); } catch (e) { console.error("[Trade Journal]", e); panel.innerHTML = `<div class="head"><b>Trade Journal</b><button type="button" class="x" data-act="hide">–</button></div><div class="body"><p class="msg">Something went wrong: ${esc(e.message)}</p><button type="button" class="btn" data-act="clear">Reset form</button></div>`; } }
   function renderInner() {
     if (!open) return;
+    panel.classList.toggle("mini", mini && !!user);
+    if (mini && user) { const n = SLOTS.filter(([k]) => D.links[k]).length, sum = [D.pair, D.dir && (D.dir === "long" ? "↑" : "↓"), n ? n + " chart" + (n === 1 ? "" : "s") : ""].filter(Boolean).join(" "); panel.innerHTML = `<div class="head"><b>Trade Journal</b><span class="who">${esc(sum)}</span><button type="button" class="x" data-act="expand" title="Expand">▢</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`; return; }
     const pos = panel.querySelector(".body"), top = pos ? pos.scrollTop : 0;
     if (!user) {
-      panel.innerHTML = `<div class="head"><b>Trade Journal</b><button type="button" class="x" data-act="hide" title="Hide">–</button></div>
+      panel.innerHTML = `<div class="head"><b>Trade Journal</b><button type="button" class="x" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>
       <form class="body login"><p>Sign in with your Trade Journal account. The extension only saves backtest trades to your own journal.</p>
       <label class="f"><span>Email</span><input type="email" name="email" autocomplete="username" required value="${esc(lastEmail)}"></label>
       <label class="f"><span>Password</span><input type="password" name="password" autocomplete="current-password" required></label>
@@ -123,7 +125,7 @@
     const csum = SLOTS.filter(([k]) => D.links[k]).map(([, l]) => l).join(" · ") || "none yet";
     const rsum = [D.outcome && ({ win: "Win", be: "BE", loss: "Loss" })[D.outcome], D.r !== "" && D.r + "R", D.evaluation && (D.evaluation === "plan" ? "To plan" : "Not to plan")].filter(Boolean).join(" · ");
     const pj = projects.find((p) => p.id === D.project);
-    panel.innerHTML = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="hide" title="Hide">–</button></div>
+    panel.innerHTML = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>
     <div class="body">
       ${f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`)}
       <div class="row2">${f(`Pair <button type="button" class="lnk inl" data-act="read" title="Read pair and replay date from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" list="tjpairs" autocomplete="off"><datalist id="tjpairs">${String((pj && pj.pairs) || "").split(/[\s,]+/).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`)}
@@ -172,7 +174,9 @@
     if (dd && !e.target.closest(".mslist")) { dd = null; render(); }
     const t = e.target.closest("button"); if (!t) return;
     const d = t.dataset;
-    if (d.act === "hide") return toggle(false);
+    if (d.act === "hide") { mini = true; store({ mini }); return render(); }
+    if (d.act === "expand") { mini = false; store({ mini }); return render(); }
+    if (d.act === "close") return toggle(false);
     if (d.act === "logout") { await call("logout"); user = null; msg = ""; return render(); }
     if (d.act === "save") return save();
     if (d.act === "clear") { const pj = D.project; D = { ...blank(), project: pj }; msg = ""; keep(); return render(); }
@@ -219,7 +223,7 @@
   [hidden]{display:none!important}
   .panel{width:360px;max-height:calc(100vh - 100px);display:flex;flex-direction:column;background:#121624;color:#e8ebf5;border:1px solid #2a3046;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.45);font-size:13px;overflow:hidden}
   .head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #2a3046;cursor:move;user-select:none}
-  .head b{font-size:14px}.who{font-size:11px;color:#8d94ad;text-transform:uppercase;letter-spacing:.05em}.x{margin-left:auto;background:none;border:0;color:#8d94ad;font-size:18px;cursor:pointer;line-height:1}
+  .head b{font-size:14px}.who{font-size:11px;color:#8d94ad;text-transform:uppercase;letter-spacing:.05em}.x{margin-left:auto;background:none;border:0;color:#8d94ad;font-size:18px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px}.x:hover{background:#222a40;color:#e8ebf5}.x2{margin-left:0}.panel.mini{width:auto;min-width:220px}.panel.mini .head{border-bottom:0}
   .body{overflow-y:auto;overflow-x:hidden;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
   .login{display:grid;gap:10px}.login p{margin:0;color:#aab0c6;line-height:1.45}
   .f{display:grid;gap:4px;min-width:0}.f>span{font-size:11px;font-weight:600;color:#8d94ad}.f>span em{font-weight:400;font-style:normal;opacity:.8;margin-left:4px}
