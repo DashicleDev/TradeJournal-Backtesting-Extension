@@ -24,11 +24,17 @@
   const host = document.createElement("div"); host.id = "tj-panel-host";
   host.style.cssText = "position:fixed;z-index:2147483000;top:72px;right:16px;";
   const root = host.attachShadow({ mode: "open" });
-  root.innerHTML = `<style>${CSS()}</style><button class="pill" title="Trade Journal">TJ</button><section class="panel" hidden></section>`;
+  root.innerHTML = `<style>${CSS()}</style><button class="pill" title="Trade Journal (drag to move)"><img src="${chrome.runtime.getURL("icons/icon-128.png")}" alt="Trade Journal" draggable="false"></button><section class="panel" hidden></section>`;
   const panel = root.querySelector(".panel"), pill = root.querySelector(".pill");
   document.documentElement.appendChild(host);
 
-  pill.onclick = () => toggle(true);
+  // the logo button: click opens the panel, drag moves it (position is remembered)
+  let pd = null;
+  pill.addEventListener("pointerdown", (e) => { const r = pill.getBoundingClientRect(); pd = { x: e.clientX, y: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false }; pill.setPointerCapture(e.pointerId); e.preventDefault(); });
+  pill.addEventListener("pointermove", (e) => { if (!pd) return; if (Math.hypot(e.clientX - pd.x, e.clientY - pd.y) > 4) pd.moved = true; if (!pd.moved) return;
+    const x = Math.max(4, Math.min(innerWidth - 48, e.clientX - pd.dx)), y = Math.max(4, Math.min(innerHeight - 48, e.clientY - pd.dy)); Object.assign(pill.style, { left: x + "px", top: y + "px", right: "auto", bottom: "auto" }); });
+  pill.addEventListener("pointerup", () => { if (!pd) return; const m = pd.moved; pd = null; if (m) store({ pillPos: { left: pill.style.left, top: pill.style.top } }); else toggle(true); });
+  chrome.storage.local.get("pillPos").then((o) => { if (o.pillPos && o.pillPos.left) Object.assign(pill.style, { left: o.pillPos.left, top: o.pillPos.top, right: "auto", bottom: "auto" }); });
   chrome.runtime.onMessage.addListener((m) => { if (m && m.type === "toggle") toggle(!open); });
   function toggle(v) { open = v; store({ open }); panel.hidden = !open; pill.hidden = open; if (open) render(); }
 
@@ -219,7 +225,7 @@
   function CSS() { return `
   :host{all:initial}
   *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
-  .pill{position:fixed;right:16px;bottom:80px;width:44px;height:44px;border-radius:50%;border:0;background:#7c8cff;color:#0b0e17;font:800 14px Inter,system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+  .pill{position:fixed;right:16px;bottom:80px;width:46px;height:46px;border-radius:12px;border:0;padding:0;background:none;cursor:grab;box-shadow:0 6px 20px rgba(0,0,0,.4);touch-action:none;overflow:hidden}.pill:active{cursor:grabbing}.pill img{width:100%;height:100%;display:block;pointer-events:none;user-select:none}
   [hidden]{display:none!important}
   .panel{width:360px;max-height:calc(100vh - 100px);display:flex;flex-direction:column;background:#121624;color:#e8ebf5;border:1px solid #2a3046;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.45);font-size:13px;overflow:hidden}
   .head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #2a3046;cursor:move;user-select:none}
