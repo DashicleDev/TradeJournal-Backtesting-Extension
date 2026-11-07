@@ -86,9 +86,9 @@
   /* ---------- long / short position tool ---------- */
   // hook.js reads the selected (or newest) Long/Short Position drawing. Positions used for a saved
   // trade are skipped next time, unless you select one.
-  let usedPos = [];
+  let usedPos = [], posWhy = "";
   chrome.storage.local.get("usedPos").then((o) => { usedPos = o.usedPos || []; });
-  const getPos = () => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "posinfo") { removeEventListener("message", f); done(e.data.pos || null); } }; addEventListener("message", f); window.postMessage({ __tj: "pos", skip: usedPos }, location.origin); setTimeout(() => { removeEventListener("message", f); done(null); }, 800); });
+  const getPos = () => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "posinfo") { removeEventListener("message", f); posWhy = e.data.pos ? "" : !e.data.api ? "Couldn't read the drawings on this chart." : e.data.n ? "The position on the chart was used for a saved trade. Select it to use it again." : "No Long/Short position on the chart yet."; done(e.data.pos || null); } }; addEventListener("message", f); window.postMessage({ __tj: "pos", skip: usedPos }, location.origin); setTimeout(() => { removeEventListener("message", f); posWhy = "Couldn't read the drawings on this chart."; done(null); }, 800); });
   const day = (t) => t ? new Date(t * 1000).toISOString().slice(0, 10) : "";
   // fills empty fields only, unless "force" lists the fields to overwrite
   async function fromPos(force = []) {
@@ -115,8 +115,9 @@
     render();
   }
   async function startSteps() {
-    await ask(); if (!D.pair && info.symbol) D.pair = pairOf(info.symbol); await fromPos(); keep();
+    await ask(); if (!D.pair && info.symbol) D.pair = pairOf(info.symbol); const p = await fromPos(); keep();
     await goStep(D.pair && D.dir ? Math.max(step, 1) : 0);
+    if (step === 0 && !D.dir) { msg = p ? "" : posWhy; render(); }
   }
   async function next() {
     const s = curStep();
@@ -275,9 +276,9 @@
     if (d.act === "clear") { const pj = D.project; D = { ...blank(), project: pj }; msg = ""; keep(); return render(); }
     if (d.act === "readdate" || d.act === "readclose") { const k = d.act === "readdate" ? "date" : "closeDate", p = await fromPos([k]);
       if (p && D[k] === day(k === "date" ? p.t0 : p.t1)) msg = `From the ${p.dir === "long" ? "Long" : "Short"} position.`;
-      else { const dt = await replayDate(); if (dt) D[k] = dt; msg = dt ? "From the replay date. Draw a Long/Short position to use that instead." : "Couldn't read the date, so fill it in yourself."; }
+      else { const dt = await replayDate(); if (dt) D[k] = dt; msg = dt ? "From the replay date. " + posWhy : "Couldn't read the date, so fill it in yourself."; }
       keep(); return render(); }
-    if (d.act === "read") { await ask(); if (info.symbol) D.pair = pairOf(info.symbol); const p = await fromPos(["dir", "date", "closeDate"]); if (!p) { const dt = dateOf(info.replay); if (dt) D.date = dt; } msg = p ? `Direction and dates from the ${p.dir === "long" ? "Long" : "Short"} position.` : D.date ? "" : "Couldn't read the replay date, so fill it in yourself."; keep(); return render(); }
+    if (d.act === "read") { await ask(); if (info.symbol) D.pair = pairOf(info.symbol); const p = await fromPos(["dir", "date", "closeDate"]); if (!p) { const dt = dateOf(info.replay); if (dt) D.date = dt; } msg = p ? `Direction and dates from the ${p.dir === "long" ? "Long" : "Short"} position.` : D.date ? posWhy : "Couldn't read the replay date, so fill it in yourself."; keep(); return render(); }
     if (d.sec) { collapsed[d.sec] = !collapsed[d.sec]; store({ collapsed }); return render(); }
     if (d.arm) return arm(d.arm);
     if (d.rm) { delete D.links[d.rm]; keep(); return render(); }

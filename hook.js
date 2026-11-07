@@ -59,16 +59,17 @@
   // one that hasn't been used for a saved trade yet.
   window.addEventListener("message", (e) => {
     if (e.source !== window || !e.data || e.data.__tj !== "pos") return;
-    let pos = null;
+    let pos = null, n = 0, apiOk = false;
     try {
       const api = window.TradingViewApi, ch = api && (api.activeChart ? api.activeChart() : api.chart && api.chart());
       const all = ((ch && ch.getAllShapes && ch.getAllShapes()) || []).filter((s) => /^(long|short)_position$/.test(s.name));
+      apiOk = !!(ch && ch.getAllShapes); n = all.length;
       let sel = []; try { sel = ch.selection().allSources() || []; } catch {}
       const skip = e.data.skip || [], pick = all.filter((s) => sel.includes(s.id)).pop() || all.filter((s) => !skip.includes(s.id)).pop();
       if (pick) { const pts = (ch.getShapeById(pick.id).getPoints() || []).filter((p) => p && p.time); const ts = pts.map((p) => p.time).sort((a, b) => a - b);
         pos = { id: pick.id, dir: pick.name.startsWith("long") ? "long" : "short", t0: ts[0] || null, t1: ts.length > 1 ? ts[ts.length - 1] : null }; }
     } catch {}
-    window.postMessage({ __tj: "posinfo", pos }, location.origin);
+    window.postMessage({ __tj: "posinfo", pos, n, api: apiOk }, location.origin);
   });
 
   // The panel asks for the current symbol / interval / replay date; we read what we can.
