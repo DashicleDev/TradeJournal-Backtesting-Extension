@@ -13,7 +13,7 @@
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
   let dd = null, mini = false, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
   const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "" });
-  let autoFit = true, settings = false, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
+  let autoFit = true, settings = false, setTab = "chart", D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
 
   /* ---------- look (same themes and accents as the journal) ---------- */
   const THEMES = {
@@ -226,14 +226,16 @@
       ltf: () => `<p class="hint">Find the reversal on the ${curStep()[1]}, then continue to grab the chart.</p>` };
     const HEAD = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="view" title="${view === "steps" ? "Show all fields" : "Step by step"}">${view === "steps" ? "☰" : "▶"}</button><button type="button" class="x x2" data-act="settings" title="Settings">⚙</button><button type="button" class="x x2" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x x2" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`;
     if (settings) {
-      panel.innerHTML = `${HEAD}<div class="body idle"><b class="ttl">Chart</b>
-        <label class="chk"><input type="checkbox" data-set="autoFit" ${autoFit ? "checked" : ""}><span>Fit chart after switching timeframe<small>Turns Auto (price scale) on and off, so the chart fits the screen.</small></span></label>
-        <b class="ttl">Look</b>
-        <label class="chk"><input type="checkbox" data-set="match" ${look.match ? "checked" : ""}><span>Same look as my journal<small>Uses the theme and accent colour from your journal's settings.</small></span></label>
-        ${look.match ? "" : `${f("Theme", `<div class="segs">${[["system", "System"], ["light", "Light"], ["dark", "Dark"], ["black", "Black"]].map(([k, l]) => `<button type="button" class="sg${look.theme === k ? " on" : ""}" data-look="theme" data-v="${k}">${l}</button>`).join("")}</div>`)}
-        ${f("Accent colour", `<div class="sw">${ACCENTS.map(([k, l, c1, c2]) => `<button type="button" class="swb${look.accent === k ? " on" : ""}" data-look="accent" data-v="${k}" title="${l}" aria-label="${l}" style="background:${c2}"></button>`).join("")}</div>`)}`}
-        <p class="hint">Signed in as ${esc(user.email)} · version ${esc(chrome.runtime.getManifest().version)}</p>
-      </div><div class="foot"><div class="fb"><button type="button" class="btn ghost" data-act="settings">Back</button><span class="sp"></span><button type="button" class="lnk" data-act="logout">Sign out</button></div></div>`;
+      const L = look.match && jLook ? jLook : look, ST = [["chart", "Chart"], ["look", "Look"], ["account", "Account"]];
+      const tab = ST.some(([k]) => k === setTab) ? setTab : "chart";
+      const tb = { chart: () => `<label class="chk"><input type="checkbox" data-set="autoFit" ${autoFit ? "checked" : ""}><span>Fit chart after switching timeframe<small>Turns Auto (price scale) on and off, so the chart fits the screen.</small></span></label>`,
+        look: () => `<label class="chk"><input type="checkbox" data-set="match" ${look.match ? "checked" : ""}><span>Same look as my journal<small>Uses the theme and accent colour from your journal's settings.</small></span></label>
+        ${f("Theme", `<div class="segs">${[["system", "System"], ["light", "Light"], ["dark", "Dark"], ["black", "Black"]].map(([k, l]) => `<button type="button" class="sg${L.theme === k ? " on" : ""}" data-look="theme" data-v="${k}">${l}</button>`).join("")}</div>`)}
+        ${f("Accent colour", `<div class="sw">${ACCENTS.map(([k, l, c1, c2]) => `<button type="button" class="swb${L.accent === k ? " on" : ""}" data-look="accent" data-v="${k}" title="${l}" aria-label="${l}" style="background:${c2}"></button>`).join("")}</div>`)}`,
+        account: () => `<p class="hint">Signed in as ${esc(user.email)}</p><p class="hint">Extension version ${esc(chrome.runtime.getManifest().version)}</p><div><button type="button" class="btn ghost" data-act="logout">Sign out</button></div>` };
+      panel.innerHTML = `${HEAD}<div class="stp">${ST.map(([k, l]) => `<button type="button" class="st${k === tab ? " on" : ""}" data-settab="${k}">${l}</button>`).join("")}</div>
+      <div class="body idle">${tb[tab]()}</div>
+      <div class="foot"><div class="fb"><button type="button" class="btn ghost" data-act="settings">Back</button></div></div>`;
     } else if (view === "steps" && !logging) {
       const draft = D.dir || D.fase || D.concept || D.entry4h || Object.keys(D.links).length;
       panel.innerHTML = `${HEAD}<div class="body idle">
@@ -294,7 +296,8 @@
     if (d.act === "discard") { const pj = D.project, pr = D.pair; D = { ...blank(), project: pj, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
     if (d.act === "posshow") { showPos(curPos()); return; }
     if (d.act === "posrefresh") { const p = await fromPos(["dir", "date", "closeDate"]); msg = p ? "" : posWhy; return render(); }
-    if (d.look) { look[d.look] = d.v; store({ look }); applyLook(); return render(); }
+    if (d.settab) { setTab = d.settab; return render(); }
+    if (d.look) { if (look.match && jLook) look = { ...look, theme: jLook.theme, accent: jLook.accent }; look.match = false; look[d.look] = d.v; store({ look }); applyLook(); return render(); }
     if (d.act === "settings") { settings = !settings; msg = ""; return render(); }
     if (d.act === "next") return next();
     if (d.act === "back") return goStep(step - 1);
