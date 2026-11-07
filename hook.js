@@ -100,6 +100,56 @@
     window.postMessage({ __tj: "posshown", ok }, location.origin);
   });
 
+  // ---------- forward the replay until price hits a drawing ----------
+  const chartApi = () => { const api = window.TradingViewApi; return api && (api.activeChart ? api.activeChart() : api.chart && api.chart()); };
+  const lastBar = () => { try { const b = window.TradingViewApi._activeChartWidgetWV.value().chartModel().mainSeries().bars().last(); return b && b.value; } catch { return null; } };
+  const LEVELS = /^(horizontal_line|horizontal_ray|rectangle)$/;
+  // a drawing's style: its tool plus every colour / width / line style it has (a template always gives the same)
+  const styleOf = (ch, s) => {
+    let props = {}; try { props = ch.getShapeById(s.id).getProperties() || {}; } catch {}
+    const out = {}; const walk = (o, pre) => { for (const [k, v] of Object.entries(o || {})) { const key = pre ? pre + "." + k : k;
+      if (v && typeof v === "object" && !Array.isArray(v)) { if (pre.split(".").length < 3) walk(v, key); }
+      else if (/(color|linewidth|linestyle|transparency)$/i.test(k) && !/text|font|label/i.test(key)) out[key] = v; } };
+    walk(props, ""); return s.name + "|" + JSON.stringify(Object.keys(out).sort().map((k) => [k, out[k]]));
+  };
+  const swatch = (sig) => { const m = /"(#[0-9a-fA-F]{6,8}|rgba?\([^"]+\))"/.exec(sig); return m ? m[1] : ""; };
+  const levelsOf = (ch, s) => { try { const pts = ch.getShapeById(s.id).getPoints() || []; const ps = pts.map((p) => p.price).filter((x) => typeof x === "number");
+    if (!ps.length) return null; return { lo: Math.min(...ps), hi: Math.max(...ps), t0: Math.min(...pts.map((p) => p.time || Infinity)), name: s.name }; } catch { return null; } };
+  let fwdStop = false;
+  window.addEventListener("message", async (e) => {
+    if (e.source !== window || !e.data) return;
+    const say = (o) => window.postMessage({ __tj: "fwdst", ...o }, location.origin);
+    if (e.data.__tj === "fwdstop") { fwdStop = true; return; }
+    if (e.data.__tj === "sig") { // style of the selected line / rectangle, to use as a trigger
+      let r = { err: "Select a horizontal line or rectangle on the chart first." };
+      try { const ch = chartApi(), sel = ch.selection().allSources() || [], s = ch.getAllShapes().find((x) => sel.includes(x.id) && LEVELS.test(x.name)); if (s) { const sig = styleOf(ch, s); r = { sig, name: s.name, color: swatch(sig) }; } } catch {}
+      return window.postMessage({ __tj: "sigok", ...r }, location.origin);
+    }
+    if (e.data.__tj !== "fwd") return;
+    fwdStop = false;
+    try {
+      const ch = chartApi(), rp = await window.TradingViewApi.replayApi();
+      if (!rp.isReplayStarted().value()) return say({ done: true, why: "Start bar replay first." });
+      const sigs = e.data.sigs || [], max = e.data.max || 300;
+      const pick = () => ch.getAllShapes().filter((s) => LEVELS.test(s.name) && (!sigs.length || sigs.includes(styleOf(ch, s)))).map((s) => levelsOf(ch, s)).filter(Boolean);
+      const touches = (b, L) => b[3] <= L.hi && b[2] >= L.lo; // bar = [time, open, high, low, close]
+      let bar = lastBar(); if (!bar) return say({ done: true, why: "Couldn't read the candles." });
+      // drawings the current candle already touches don't count
+      let watch = pick().filter((L) => !touches(bar, L));
+      if (!watch.length) return say({ done: true, why: sigs.length ? "No lines or rectangles in your trigger styles ahead of price." : "No horizontal lines or rectangles ahead of price." });
+      for (let n = 1; n <= max; n++) {
+        if (fwdStop) return say({ done: true, why: `Stopped after ${n - 1} candles.` });
+        const t = bar[0]; rp.doStep();
+        let nb = null; for (let i = 0; i < 60; i++) { await new Promise((r) => setTimeout(r, 50)); const b = lastBar(); if (b && b[0] !== t) { nb = b; break; } }
+        if (!nb) return say({ done: true, why: `No new candle came in (after ${n - 1}). Is the replay at the end?` });
+        bar = nb; say({ n });
+        const hit = watch.find((L) => (!isFinite(L.t0) || L.t0 <= bar[0]) && touches(bar, L));
+        if (hit) return say({ done: true, hit: true, n, why: `Price hit the ${hit.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
+      }
+      say({ done: true, why: `No hit in ${max} candles.` });
+    } catch (err) { say({ done: true, why: "Couldn't forward the replay: " + String((err && err.message) || err) }); }
+  });
+
   // The panel asks for the current symbol / interval / replay date; we read what we can.
   window.addEventListener("message", (e) => {
     if (e.source !== window || !e.data || e.data.__tj !== "ask") return;

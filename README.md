@@ -37,6 +37,8 @@ Click the logo, then **＋ Log trade**. The panel walks you through the trade:
 The panel takes direction, entry date and close date from it (the one selected on the chart, otherwise the one picked under **Position** on the first step, otherwise the one with the latest entry).
 It only fills empty fields, so you can still change the dates; **⟳ from chart** reads them again.
 
+**⏩ Forward to drawing** (4H and 1H/2H steps, in bar replay): steps the replay forward until a candle touches a horizontal line or rectangle, max 300 candles, **■ Stop** to stop. In ⚙ → Replay you can add your templates (select a drawing, **Use the selected drawing's style**) so it only stops at those.
+
 **Stop** pauses logging and keeps the trade: the start screen then offers **Continue trade** or **Discard it**.
 
 **Back** or the step tabs go to an earlier step (the chart switches back too).
