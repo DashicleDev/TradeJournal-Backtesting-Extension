@@ -122,8 +122,16 @@
   const textOf = (ch, s) => { try { const pr = ch.getShapeById(s.id).getProperties() || {}; return String(pr.text || (pr.label && pr.label.text) || "").trim(); } catch { return ""; } };
   const normT = (t) => String(t || "").trim().replace(/\s+/g, " ").toLowerCase();
   const swatch = (sig) => { const m = /"(#[0-9a-fA-F]{6,8}|rgba?\([^"]+\))"/.exec(sig); return m ? m[1] : ""; };
-  const levelsOf = (ch, s) => { try { /* name kept for the messages */ const pts = ch.getShapeById(s.id).getPoints() || []; const ps = pts.map((p) => p.price).filter((x) => typeof x === "number");
-    if (!ps.length) return null; return { lo: Math.min(...ps), hi: Math.max(...ps), t0: Math.min(...pts.map((p) => p.time || Infinity)), name: s.name }; } catch { return null; } };
+  // price levels of a drawing; ptsInfo keeps what TradingView returned, for the message when it can't be read
+  const rawPts = (ch, s) => { try { const sh = ch.getShapeById(s.id); return (sh.getPoints && sh.getPoints()) || []; } catch (e) { return "error: " + String(e && e.message || e); } };
+  const levelsOf = (ch, s) => {
+    const pts = rawPts(ch, s); if (!Array.isArray(pts)) return null;
+    let ps = pts.map((p) => Number(p && (p.price ?? p.y ?? p.value))).filter((x) => isFinite(x) && x !== 0);
+    if (!ps.length) { try { const pr = ch.getShapeById(s.id).getProperties() || {}; const v = Number(pr.price ?? (pr.points && pr.points[0] && pr.points[0].price)); if (isFinite(v) && v) ps = [v]; } catch {} }
+    if (!ps.length) return null;
+    const ts = pts.map((p) => Number(p && p.time)).filter((x) => isFinite(x) && x > 0);
+    return { lo: Math.min(...ps), hi: Math.max(...ps), t0: ts.length ? Math.min(...ts) : -Infinity, name: s.name };
+  };
   // next daily / weekly candle close (forex: 17:00 New York; weekly = Friday) strictly after time t (seconds)
   const nyParts = (t) => { const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(new Date(t * 1000)); const g = (k) => (p.find((x) => x.type === k) || {}).value; return { wd: g("weekday"), h: +g("hour"), m: +g("minute") }; };
   const nextClose = (t, kind) => { let x = Math.floor(t / 3600) * 3600 + 3600; for (let i = 0; i < 24 * 9; i++, x += 3600) { const q = nyParts(x); if (q.h === 17 && q.m === 0 && (kind === "W" ? q.wd === "Fri" : !["Sat", "Sun"].includes(q.wd))) return x; } return 0; };
@@ -168,7 +176,9 @@
           const tool = (ls) => ls.split("|")[0], cols = (ls) => ls.split("|")[1];
           const notes = ch.getAllShapes().filter((s) => LEVELS.test(s.name)).slice(0, 6).map((s) => {
             const ls = looseSig(styleOf(ch, s)), tx = normT(textOf(ch, s)), nm = textOf(ch, s) || s.name.replace("horizontal_", "").replace("_", " ");
-            if (specs.some((t) => t.ls === ls && t.tx === tx)) return `${nm}: matches, but price already touches it`;
+            if (specs.some((t) => t.ls === ls && t.tx === tx)) { const L = levelsOf(ch, s), f = (x) => +(+x).toFixed(5);
+              if (!L) return `${nm}: matches, but its price couldn't be read (${JSON.stringify(rawPts(ch, s)).slice(0, 120)})`;
+              return touches(bar, L) ? `${nm}: matches, but the current candle (H ${f(bar[2])} L ${f(bar[3])}) already touches it at ${f(L.lo)}` : `${nm}: matches at ${f(L.lo)}`; }
             const same = specs.find((t) => t.tx === tx) || specs.find((t) => tool(t.ls) === tool(ls) && cols(t.ls) === cols(ls));
             if (!same) return `${nm}: no style with this text`;
             const d = [tool(same.ls) !== tool(ls) && "other tool", cols(same.ls) !== cols(ls) && "other colour", same.tx !== tx && "other text"].filter(Boolean).join(", ");
