@@ -258,7 +258,7 @@
           <div class="fb"><button type="button" class="btn pri" data-act="log">▶ Continue trade</button><button type="button" class="btn ghost" data-act="discard">Discard it</button></div>`
         : `<div class="newt"><button type="button" class="fab" data-act="log" aria-label="New trade" title="New trade">+</button><span><b>New trade</b><small>Weekly, Daily and 4H, grabbing each chart as you go.</small></span></div>`}
         <div class="skip"><b class="ttl">Skip to the next drawing hit (4H)</b>
-          ${fwd ? fwdBtn() : `<div class="fb"><button type="button" class="btn ghost" data-act="skip1d">⏩ Max 1 day</button><button type="button" class="btn ghost" data-act="skip1w">⏩ Max 1 week</button></div>`}</div>
+          ${fwd ? fwdBtn() : `<div class="fb"><button type="button" class="btn ghost" data-act="skip1d" title="Stops at a hit, or at the latest when the daily candle closes">⏩ Until daily close</button><button type="button" class="btn ghost" data-act="skip1w" title="Stops at a hit, or at the latest when the weekly candle closes">⏩ Until weekly close</button></div>`}</div>
       </div>${msg ? `<div class="foot"><p class="msg">${esc(msg)}</p></div>` : ""}`;
     } else if (view === "steps") {
       const L = steps(), s = curStep(), last = step === L.length - 1, link = s[2] && D.links[s[0]];
@@ -300,7 +300,7 @@
     if (d.act === "skip1d" || d.act === "skip1w") { const days = d.act === "skip1d" ? 1 : 7; fwd = { n: 0 }; msg = ""; render();
       const ok = await setTf("240"); if (!ok) { fwd = null; msg = "Switch the chart to 4H yourself, then try again."; return render(); }
       await new Promise((r) => setTimeout(r, 600));
-      window.postMessage({ __tj: "fwd", sigs: trig.map((t) => t.sig), max: 300, maxSec: days * 86400, span: days === 1 ? "1 day" : "1 week" }, location.origin); return; }
+      window.postMessage({ __tj: "fwd", sigs: trig.map((t) => t.sig), max: 300, until: days === 1 ? "D" : "W" }, location.origin); return; }
     if (d.act === "fwdstop") { window.postMessage({ __tj: "fwdstop" }, location.origin); return; }
     if (d.act === "trigadd") { window.postMessage({ __tj: "sig" }, location.origin); return; }
     if (d.rmtrig != null) { trig = trig.filter((_, i) => i !== +d.rmtrig); store({ trig }); return render(); }

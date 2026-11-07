@@ -117,6 +117,9 @@
   const swatch = (sig) => { const m = /"(#[0-9a-fA-F]{6,8}|rgba?\([^"]+\))"/.exec(sig); return m ? m[1] : ""; };
   const levelsOf = (ch, s) => { try { const pts = ch.getShapeById(s.id).getPoints() || []; const ps = pts.map((p) => p.price).filter((x) => typeof x === "number");
     if (!ps.length) return null; return { lo: Math.min(...ps), hi: Math.max(...ps), t0: Math.min(...pts.map((p) => p.time || Infinity)), name: s.name }; } catch { return null; } };
+  // next daily / weekly candle close (forex: 17:00 New York; weekly = Friday) strictly after time t (seconds)
+  const nyParts = (t) => { const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(new Date(t * 1000)); const g = (k) => (p.find((x) => x.type === k) || {}).value; return { wd: g("weekday"), h: +g("hour"), m: +g("minute") }; };
+  const nextClose = (t, kind) => { let x = Math.floor(t / 3600) * 3600 + 3600; for (let i = 0; i < 24 * 9; i++, x += 3600) { const q = nyParts(x); if (q.h === 17 && q.m === 0 && (kind === "W" ? q.wd === "Fri" : !["Sat", "Sun"].includes(q.wd))) return x; } return 0; };
   let fwdStop = false;
   window.addEventListener("message", async (e) => {
     if (e.source !== window || !e.data) return;
@@ -137,12 +140,9 @@
       const touches = (b, L) => b[3] <= L.hi + 1e-9 && b[2] >= L.lo - 1e-9; // bar = [time, open, high, low, close]
       let bar = lastBar(); if (!bar) return say({ done: true, why: "Couldn't read the candles." });
       // drawings the current candle already touches don't count
-      const allL = pick(), fmt = (x) => +x.toFixed(5), desc = (L) => (L.name === "rectangle" ? `rectangle ${fmt(L.lo)}–${fmt(L.hi)}` : `line ${fmt(L.lo)}`);
-      const shapes = ch.getAllShapes(), names = [...new Set(shapes.map((s) => s.name))].join(", ");
-      let watch = allL.filter((L) => !touches(bar, L));
-      const info = ` [watching: ${watch.map(desc).join("; ") || "none"}${allL.length > watch.length ? `; skipped (touched now): ${allL.filter((L) => touches(bar, L)).map(desc).join("; ")}` : ""}; drawings on chart: ${names || "none"}; last candle H ${fmt(bar[2])} L ${fmt(bar[3])}]`;
-      if (!watch.length) return say({ done: true, why: (sigs.length ? "No lines or rectangles in your trigger styles ahead of price." : "No horizontal lines or rectangles ahead of price.") + info });
-      const start = bar[0], maxSec = e.data.maxSec || 0;
+      let watch = pick().filter((L) => !touches(bar, L));
+      if (!watch.length) return say({ done: true, why: (sigs.length ? "No lines or rectangles in your trigger styles ahead of price." : "No horizontal lines or rectangles ahead of price.") });
+      const start = bar[0], maxSec = e.data.maxSec || 0, until = e.data.until ? nextClose(bar[0] + 14400, e.data.until) : 0;
       for (let n = 1; n <= max; n++) {
         if (fwdStop) return say({ done: true, why: `Stopped after ${n - 1} candles.` });
         const t = bar[0]; rp.doStep();
@@ -158,9 +158,10 @@
         const pb = prevBar(), cands = [pb, bar].filter((b) => b && b[0] > start);
         const hit = watch.find((L) => cands.some((b) => (!isFinite(L.t0) || L.t0 <= b[0]) && touches(b, L)));
         if (hit) return say({ done: true, hit: true, n, why: `Price hit the ${hit.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
-        if (maxSec && bar[0] - start >= maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"} (${n} candles).` + info + ` now H ${fmt(bar[2])} L ${fmt(bar[3])}` });
+        if (until && bar[0] + 14400 >= until) return say({ done: true, why: `No hit before the ${e.data.until === "W" ? "weekly" : "daily"} close (${n} candle${n === 1 ? "" : "s"}).` });
+        if (maxSec && bar[0] - start >= maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"} (${n} candles).` });
       }
-      say({ done: true, why: `No hit in ${max} candles.` + info });
+      say({ done: true, why: `No hit in ${max} candles.` });
     } catch (err) { say({ done: true, why: "Couldn't forward the replay: " + String((err && err.message) || err) }); }
   });
 
