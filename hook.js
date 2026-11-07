@@ -60,9 +60,8 @@
         const isAuto = () => { const b = autoBtn(); if (b) return [...b.classList].some((c) => /^priceScaleModeButton_activated/.test(c)); const s = scale(); return !!(s && s.isAutoScale && s.isAutoScale()); };
         const flip = (v) => { const b = autoBtn(); if (b) b.click(); else { const s = scale(); if (s && s.setAutoScale) s.setAutoScale(v); } };
         const wasAuto = isAuto();
-        const say = (m) => { const b = autoBtn(); window.postMessage({ __tj: "fitlog", m: m + ` [${document.querySelectorAll('button[aria-label="Toggle auto scale"]').length} A-buttons; ${b ? b.className.replace(/-[\w]{6,}/g, "") : "none"}]` }, location.origin); };
-        const fit = async () => { if (wasAuto) return say("Auto was on, left it on."); await W(800); await frame(); if (isAuto()) return say("Auto was on, left it on.");
-          flip(true); await W(600); await frame(); const on = isAuto(); if (on) flip(false); say(on ? "Chart refitted (Auto on and off)." : "Couldn't turn Auto on (button " + (autoBtn() ? "found" : "not found") + ")."); };
+        const fit = async () => { if (!e.data.fit || wasAuto) return; await W(800); await frame(); if (isAuto()) return;
+          flip(true); await W(600); await frame(); if (isAuto()) flip(false); };
         let done = false; const go = () => { if (!done) { done = true; fit(); } };
         Promise.resolve(ch.setResolution(res)).catch(() => {}).then(go); setTimeout(go, 2500);
         ok = true; } } catch {}

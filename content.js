@@ -13,11 +13,11 @@
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
   let dd = null, mini = false, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
   const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "" });
-  let D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
+  let autoFit = true, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
 
   /* ---------- storage ---------- */
   const store = (o) => chrome.storage.local.set(o);
-  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step", "logging"]); mini = !!o.mini; logging = !!o.logging; view = o.view || "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
+  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step", "logging", "autoFit"]); mini = !!o.mini; autoFit = o.autoFit !== false; logging = !!o.logging; view = o.view || "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
   let saveT; const keep = () => { clearTimeout(saveT); saveT = setTimeout(() => store({ draft: D }), 250); };
 
   /* ---------- shell ---------- */
@@ -101,12 +101,9 @@
   }
   const replayDate = async () => { await ask(); return dateOf(info.replay); };
 
-  // short note from the page after a timeframe switch (Auto scale refit)
-  addEventListener("message", (e) => { if (e.source === window && e.data && e.data.__tj === "fitlog" && !busy) { msg = e.data.m; render(); } });
-
   /* ---------- step by step ---------- */
   // ask the page to switch the chart's timeframe (hook.js does it through TradingView's own API)
-  const setTf = (res) => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "tfok") { removeEventListener("message", f); done(e.data.ok); } }; addEventListener("message", f); window.postMessage({ __tj: "tf", res }, location.origin); setTimeout(() => { removeEventListener("message", f); done(false); }, 1500); });
+  const setTf = (res) => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "tfok") { removeEventListener("message", f); done(e.data.ok); } }; addEventListener("message", f); window.postMessage({ __tj: "tf", res, fit: autoFit }, location.origin); setTimeout(() => { removeEventListener("message", f); done(false); }, 1500); });
   const steps = () => [["setup", "Trade"], ["weekly", "Weekly", "1W"], ["daily", "Daily", "1D"], ["h4", "4H", "240"],
     ...(D.entry4h === "Engulfing Candle" ? [["ltf", D.ecTf === "1h" ? "1H" : "2H", D.ecTf === "1h" ? "60" : "120"]] : []), ["result", "Result"]];
   const dateStep = () => steps().filter((x) => x[2]).pop()[0];
@@ -220,6 +217,7 @@
         ${draft ? `<p class="hint">Unfinished trade: ${esc([D.pair, D.dir && (D.dir === "long" ? "↑ Long" : "↓ Short"), steps()[step] && "at " + steps()[step][1]].filter(Boolean).join(" · "))}</p>
           <button type="button" class="btn pri big" data-act="log">▶ Continue trade</button><button type="button" class="btn ghost" data-act="discard">Discard it</button>`
         : `<button type="button" class="btn pri big" data-act="log">＋ Log trade</button><p class="hint">Opens the Weekly, then Daily and 4H, grabbing each chart as you go.</p>`}
+        <label class="chk"><input type="checkbox" data-set="autoFit" ${autoFit ? "checked" : ""}><span>Fit chart after switching timeframe<small>Turns Auto (price scale) on and off, so the chart fits the screen.</small></span></label>
       </div><div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb"><span class="sp"></span><button type="button" class="lnk" data-act="logout" title="${esc(user.email)}">Sign out</button></div></div>`;
     } else if (view === "steps") {
       const L = steps(), s = curStep(), last = step === L.length - 1, link = s[2] && D.links[s[0]];
@@ -298,7 +296,8 @@
     if (d.k) { D[d.k] = D[d.k] === d.v ? "" : d.v; if (d.k === "fase" && D.concept && !(P.plan.faseConcepts[D.fase] || []).includes(D.concept)) { D.concept = ""; D.sub = ""; }
       if (d.k === "outcome" && d.v === "be" && D.r === "") D.r = "0"; keep(); return render(); }
   });
-  root.addEventListener("change", async (e) => { const k = e.target.dataset && e.target.dataset.k; if (!k) return;
+  root.addEventListener("change", async (e) => { if (e.target.dataset && e.target.dataset.set === "autoFit") { autoFit = e.target.checked; store({ autoFit }); return; }
+    const k = e.target.dataset && e.target.dataset.k; if (!k) return;
     if (k === "posPick") { D.posPick = e.target.value; const p = await fromPos(["dir", "date", "closeDate"]); showPos(p); msg = p ? "" : posWhy; return render(); }
     D[k] = e.target.value;
     // typing fields: no re-render, so a click that caused the blur (e.g. Save) isn't lost
@@ -362,6 +361,7 @@
   .foot{border-top:1px solid #2a3046;padding:10px 12px;display:grid;gap:8px}.fb{display:flex;gap:8px;align-items:center}.sp{flex:1}
   .lnk{background:none;border:0;color:#8d94ad;font-size:12px;cursor:pointer;text-decoration:underline}.lnk.inl{font-size:11px;padding:0;margin-left:6px;color:#9aa6ff;text-decoration:none}
   .posl{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 9px;border:1px solid #2a3046;border-radius:7px;background:#0b0e17}.posl span{color:#8d94ad;font-weight:600;font-size:11px}.posl b{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.posl .lnk{margin:0}
+  .chk{display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-top:4px}.chk input{width:auto;margin-top:2px;accent-color:#7c8cff}.chk small{display:block;color:#8d94ad;font-size:11.5px;margin-top:2px}
   .btn.big{padding:11px 14px;font-size:14px}.idle{gap:12px}
   .msg{margin:0;font-size:12px;color:#c8cdf9;line-height:1.4}
   .stp{display:flex;gap:3px;padding:8px 12px 0}.st{flex:1;min-width:0;border:0;border-bottom:2px solid #2a3046;background:none;color:#8d94ad;font-size:11px;font-weight:600;padding:4px 2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
