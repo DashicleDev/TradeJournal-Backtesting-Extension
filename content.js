@@ -7,13 +7,14 @@
     r && r.ok ? res(r.v) : rej(new Error((r && r.error) || "No answer"));
   }));
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const JOURNAL = "https://dashicledev.github.io/TradeJournal/";
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const tvImg = (id) => id ? `https://s3.tradingview.com/snapshots/${id[0].toLowerCase()}/${id}.png` : "";
   const SLOTS = [["weekly", "Weekly"], ["daily", "Daily"], ["h4", "4H"], ["ltf", "1H/2H"]];
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
   let dd = null, mini = false, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
-  const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "" });
-  let tfPrev = "", skipBack = "", autoFit = true, settings = false, setTab = "chart", trig = [], fwd = null, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
+  const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "", planEntry: "", slPips: "", tpPips: "" });
+  let savedId = "", tfPrev = "", skipBack = "", autoFit = true, settings = false, setTab = "chart", trig = [], fwd = null, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
 
   /* ---------- look (same themes and accents as the journal) ---------- */
   const THEMES = {
@@ -29,6 +30,15 @@
   }
   async function loadJLook() { try { const st = await call("jsettings"); if (st) { jLook = { theme: st.theme || "system", accent: st.accent || "blue" }; store({ jLook }); } } catch {} applyLook(); }
 
+  /* ---------- settings: kept in this browser and in your journal account ---------- */
+  let setT; const saveSet = (o) => { store(o); clearTimeout(setT); setT = setTimeout(() => { if (user) call("extSave", { data: { autoFit, look, trig } }).catch(() => {}); }, 600); };
+  async function loadSet() {
+    try { const r = await call("extLoad");
+      if (r) { if (typeof r.autoFit === "boolean") autoFit = r.autoFit; if (r.look) look = { ...look, ...r.look }; if (Array.isArray(r.trig)) trig = r.trig; store({ autoFit, look, trig }); applyLook(); }
+      else call("extSave", { data: { autoFit, look, trig } }).catch(() => {}); // first time: put this browser's settings in the account
+    } catch {}
+  }
+
   /* ---------- storage ---------- */
   const store = (o) => chrome.storage.local.set(o);
   const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step", "logging", "autoFit", "look", "jLook", "trig"]); mini = !!o.mini; trig = o.trig || []; if (o.look) look = { ...look, ...o.look }; if (o.jLook) jLook = o.jLook; autoFit = o.autoFit !== false; logging = !!o.logging; view = "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
@@ -41,6 +51,8 @@
   root.innerHTML = `<style>${CSS()}</style><button class="pill" title="Trade Journal (drag to move)"><img src="${chrome.runtime.getURL("icons/icon-128.png")}" alt="Trade Journal" draggable="false"></button><section class="panel" hidden></section>`;
   const panel = root.querySelector(".panel"), pill = root.querySelector(".pill");
   document.documentElement.appendChild(host);
+  // the journal's font (Archivo), shipped with the extension, so the page's rules can't block it
+  fetch(chrome.runtime.getURL("fonts/archivo.woff2")).then((r) => r.arrayBuffer()).then((buf) => { const ff = new FontFace("TJ Archivo", buf, { weight: "100 900", stretch: "62% 125%" }); return ff.load().then(() => document.fonts.add(ff)); }).catch(() => {});
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => applyLook());
 
   // the logo button: click opens the panel, drag moves it (position is remembered)
@@ -121,7 +133,7 @@
     if (e.source !== window || !e.data) return;
     if (e.data.__tj === "fwdst") { if (e.data.done) { fwd = null; msg = e.data.why || ""; const back = skipBack; skipBack = ""; if (back && !e.data.hit) setTf(back); } else fwd = { n: e.data.n }; render(); }
     if (e.data.__tj === "sigok") { if (e.data.err) msg = e.data.err; else if (trig.some((t) => t.sig === e.data.sig)) msg = "That style is already in the list.";
-      else { trig = [...trig, { sig: e.data.sig, name: e.data.name, color: e.data.color }]; store({ trig }); msg = ""; } render(); }
+      else { trig = [...trig, { sig: e.data.sig, name: e.data.name, color: e.data.color }]; saveSet({ trig }); msg = ""; } render(); }
   });
   const fwdBtn = () => fwd ? `<div class="fwd"><span>⏩ Forwarding… ${fwd.n || 0} candle${fwd.n === 1 ? "" : "s"}</span><button type="button" class="btn sm" data-act="fwdstop">■ Stop</button></div>`
     : `<button type="button" class="btn sm fwdgo" data-act="fwd" >⏩ Forward to drawing</button>`;
@@ -167,14 +179,15 @@
       date: D.date, closeDate: D.closeDate, concept: D.concept, fase: D.fase ? +D.fase : null, wStruct: D.wStruct, wPat: D.wPat, wPatSub: D.wPat ? D.wPatSub : "", wRange: !!D.wRange,
       scaleIn: !!D.scaleIn, dMs: D.dMs, hMs: D.hMs, weekly, sub: D.concept === "Weekly - 4H" ? "" : D.sub, dPros: D.dPros.slice(), dailyFib: D.dPros.includes("fc") ? "ja" : "nee",
       outcome: D.outcome, r, maxR: num(D.maxR), notes: D.notes.trim(), evaluation: D.evaluation, onPlan: D.evaluation ? D.evaluation === "plan" : null, exitReason: D.exit,
-      entry4h: D.entry4h, planEntry: null, slPips: null, tpPips: null, struct: st, bos: bos ? "ja" : som ? "nee" : "", dfs: "", som: som && D.entry4h === "Reversal" ? "ja" : "", room: som ? (D.room ? "ja" : "nee") : "",
+      entry4h: D.entry4h, planEntry: num(D.planEntry), slPips: num(D.slPips), tpPips: num(D.tpPips), struct: st, bos: bos ? "ja" : som ? "nee" : "", dfs: "", som: som && D.entry4h === "Reversal" ? "ja" : "", room: som ? (D.room ? "ja" : "nee") : "",
       ecTf: D.entry4h === "Engulfing Candle" ? D.ecTf : "", shots: {}, shotLinks: { ...D.links }, pair: pairOf(D.pair), dir: D.dir, created: Date.now(), source: "tradingview-extension" };
   }
+  const rrText = () => { const sl = +D.slPips, tp = +D.tpPips; return sl > 0 && tp > 0 ? "1 : " + (Math.round(tp / sl * 100) / 100) : "—"; };
   const missing = () => [!D.pair && "pair", !D.date && "date", !D.dir && "direction"].filter(Boolean);
   async function save() {
     const miss = missing(); if (miss.length) { msg = "Still needed: " + miss.join(", ") + (view === "steps" && !D.date ? ` (on the ${steps().find((x) => x[0] === dateStep())[1]} step)` : "") + "."; return render(); }
     busy = true; render();
-    try { const doc = toDoc(); await call("save", { doc }); const pj = D.project, pr = D.pair;
+    try { const doc = toDoc(); await call("save", { doc }); savedId = doc.id; const pj = D.project, pr = D.pair;
       D = { ...blank(), project: pj, pair: pr }; store({ draft: D, lastProject: pj });
       msg = `Saved ${doc.pair} ${doc.dir} to ${(projects.find((p) => p.id === pj) || {}).name || "Backtest"}.`; if (view === "steps") { step = 0; logging = false; store({ step, logging }); } }
     catch (e) { msg = "Couldn't save: " + e.message; }
@@ -211,25 +224,27 @@
     const pj = projects.find((p) => p.id === D.project);
     const B = { setup: () => `      ${f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`)}
       <div class="row2">${f(`Pair <button type="button" class="lnk inl" data-act="read" title="Read pair and replay date from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" list="tjpairs" autocomplete="off"><datalist id="tjpairs">${String((pj && pj.pairs) || "").split(/[\s,]+/).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`)}
-        ${view === "steps" ? f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir)) : f("Entry date", `<input type="date" data-k="date" value="${esc(D.date)}">`)}</div>
+        ${view === "steps" ? f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir)) : f("Date", `<input type="date" data-k="date" value="${esc(D.date)}">`)}</div>
       ${view === "steps" ? "" : f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir))}${posSel()}`, weekly: () => `
-        <div class="row2">${f("Phase", seg("fase", [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]], String(D.fase)))}${f("Inner / outer", seg("wStruct", [["inner", "Inner"], ["outer", "Outer"]], D.wStruct))}</div>
+        <div class="row2">${f("Weekly phase", seg("fase", [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]], String(D.fase)))}${f("Inner / outer", seg("wStruct", [["inner", "Inner"], ["outer", "Outer"]], D.wStruct))}</div>
         <div class="row2">${f("Market trend", seg("trend", MS, D.trend))}${f("Market structure", seg("ms", MS, D.ms))}</div>
-        <div class="row2">${f("Ranging", `<div class="segs"><button type="button" class="sg${D.wRange ? " on" : ""}" data-tog="wRange">↔ Ranging</button></div>`)}
+        <div class="row2">${f("Ranging <em>between two weekly levels</em>", `<div class="segs"><button type="button" class="sg${D.wRange ? " on" : ""}" data-tog="wRange">↔ Ranging</button></div>`)}
           ${f("Weekly pattern", sel("wPat", ["Continuation", "Reversal", "Pattern in Pattern"], D.wPat, "No pattern"))}</div>
-        ${D.wPat && D.wPat !== "Reversal" ? f("Pattern variant", sel("wPatSub", P.plan.concepts[D.wPat] || [], D.wPatSub, "Not set")) : ""}
+        ${D.wPat && D.wPat !== "Reversal" ? f("Pattern variant <em>optional</em>", sel("wPatSub", P.plan.concepts[D.wPat] || [], D.wPatSub, "Not set")) : ""}
         <div class="row2">${["for", "against"].map((side) => { const lab = side === "for" ? "Pros" : "Cons", sel = wc.filter(([k]) => D.w[k] === side), rest = wc.filter(([k]) => !D.w[k]);
           return f(lab, `<div class="ms ${side}"><div class="msbox" data-dd="${side}">${sel.map(([k, l]) => `<span class="mchip ${side}">${esc(l)}<button type="button" data-unw="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose criteria…</span>`}<i>▾</i></div>${dd === side ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addw="${k}" data-side="${side}">${esc(l)}</button>`).join("") : `<span class="msph">All criteria used</span>`}</div>` : ""}</div>`); }).join("")}</div>`, daily: () => `
-        ${(() => { const v = P.plan.concepts[D.concept] || [], none = !D.concept || D.concept === "Weekly - 4H" || !v.length || (v.length === 1 && v[0] === "—"); return `<div class="row2">${f("Trade concept", sel("concept", fc, D.concept, "Choose…"))}${none ? "" : f("Variant", sel("sub", v, D.sub, "Choose…"))}</div>`; })()}
+        ${(() => { const v = P.plan.concepts[D.concept] || [], none = !D.concept || D.concept === "Weekly - 4H" || !v.length || (v.length === 1 && v[0] === "—"); return `<div class="row2">${f("Trade concept", sel("concept", fc, D.concept, "Choose…"))}${none ? "" : f("Daily variant <em>optional</em>", sel("sub", v, D.sub, "Choose…"))}</div>`; })()}
         ${f("Market structure", seg("dMs", MS, D.dMs))}
-        ${f("Daily pros", (() => { const sel = P.dcrit.filter(([k]) => D.dPros.includes(k)), rest = P.dcrit.filter(([k]) => !D.dPros.includes(k)); return `<div class="ms for"><div class="msbox" data-dd="dpros">${sel.map(([k, l]) => `<span class="mchip for">${esc(l)}<button type="button" data-und="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose criteria…</span>`}<i>▾</i></div>${dd === "dpros" ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addd="${k}">${esc(l)}</button>`).join("") : `<span class="msph">All criteria used</span>`}</div>` : ""}</div>`; })())}`, h4: () => `
+        ${f("Pros", (() => { const sel = P.dcrit.filter(([k]) => D.dPros.includes(k)), rest = P.dcrit.filter(([k]) => !D.dPros.includes(k)); return `<div class="ms for"><div class="msbox" data-dd="dpros">${sel.map(([k, l]) => `<span class="mchip for">${esc(l)}<button type="button" data-und="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose criteria…</span>`}<i>▾</i></div>${dd === "dpros" ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addd="${k}">${esc(l)}</button>`).join("") : `<span class="msph">All criteria used</span>`}</div>` : ""}</div>`; })())}`, h4: () => `
         <div class="row2">${f("4H entry", sel("entry4h", P.plan.entries, D.entry4h, "Choose…"))}${f("Market structure", seg("hMs", MS, D.hMs))}</div>
-        ${hasStruct(D.entry4h) ? `<div class="row2">${f("4H structure", seg("struct", [["bos", "BoS"], ["som", "SoM"]], D.struct))}${D.struct === "som" ? f("Room", `<div class="segs"><button type="button" class="sg${D.room ? " on" : ""}" data-tog="room">Room</button></div>`) : ""}</div>` : ""}
+        ${hasStruct(D.entry4h) ? `<div class="row2">${f("4H structure", seg("struct", [["bos", "BoS"], ["som", "SoM"]], D.struct))}${D.struct === "som" ? f("4H room", `<div class="segs"><button type="button" class="sg${D.room ? " on" : ""}" data-tog="room">Room</button></div>`) : ""}</div>` : ""}
+        ${f("Scale-in", `<div class="segs"><button type="button" class="sg${D.scaleIn ? " on" : ""}" data-tog="scaleIn">Scale-in</button></div>`)}
         ${D.entry4h === "Engulfing Candle" ? f("Reversal on", seg("ecTf", [["1h", "1 hour"], ["2h", "2 hour"]], D.ecTf)) : ""}
-        ${f("Scale-in", `<div class="segs"><button type="button" class="sg${D.scaleIn ? " on" : ""}" data-tog="scaleIn">Scale-in</button></div>`)}`, result: () => `
+        <div class="row3">${f("Planned entry price", `<input type="number" step="any" data-k="planEntry" value="${esc(D.planEntry)}">`)}${f("Stop loss (pips)", `<input type="number" step="any" min="0" data-k="slPips" value="${esc(D.slPips)}">`)}${f("Take profit (pips)", `<input type="number" step="any" min="0" data-k="tpPips" value="${esc(D.tpPips)}">`)}</div>
+        <p class="hint">Planned R:R <b data-rr>${esc(rrText())}</b></p>`, result: () => `
         ${f("Outcome", seg("outcome", [["win", "Win"], ["be", "BE"], ["loss", "Loss"]], D.outcome))}
         ${f(`Close date <button type="button" class="lnk inl" data-act="readclose" title="From the Long/Short position (right edge), or the replay date">⟳ from chart</button>`, `<input type="date" data-k="closeDate" value="${esc(D.closeDate)}" min="${esc(D.date)}">`)}
-        <div class="row2">${f("Result (R)", `<input type="number" step="any" data-k="r" value="${esc(D.r)}">`)}${f("Max R reached", `<input type="number" step="any" min="0" data-k="maxR" value="${esc(D.maxR)}">`)}</div>
+        <div class="row2">${f("Result (R)", `<input type="number" step="any" data-k="r" value="${esc(D.r)}">`)}${f("Max R reached <em>optional</em>", `<input type="number" step="any" min="0" data-k="maxR" value="${esc(D.maxR)}">`)}</div>
         ${f("Exit", sel("exit", P.plan.exits.filter((x) => x !== "Invalid, cancelled"), D.exit, "Choose…"))}
         ${f("According to plan?", seg("evaluation", [["plan", "Yes"], ["off", "No"]], D.evaluation))}
         ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}`,
@@ -259,12 +274,12 @@
         : `<div class="newt"><button type="button" class="fab" data-act="log" aria-label="New trade" title="New trade">+</button><span><b>New trade</b><small>Weekly, Daily and 4H, grabbing each chart as you go.</small></span></div>`}
         <div class="skip"><b class="ttl">Skip to the next drawing hit (4H)</b>
           ${fwd ? fwdBtn() : `<div class="fb"><button type="button" class="btn ghost" data-act="skip1d" title="Stops at a hit, or at the latest when the daily candle closes">⏩ Until daily close</button><button type="button" class="btn ghost" data-act="skip1w" title="Stops at a hit, or at the latest when the weekly candle closes">⏩ Until weekly close</button></div>`}</div>
-      </div>${msg ? `<div class="foot"><p class="msg">${esc(msg)}</p></div>` : ""}`;
+      </div>${msg || savedId ? `<div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}${savedId ? `<a class="lnk ext" href="${JOURNAL}#trade=${encodeURIComponent(savedId)}" target="_blank" rel="noopener">Open in journal ↗</a>` : ""}</div>` : ""}`;
     } else if (view === "steps") {
       const L = steps(), s = curStep(), last = step === L.length - 1, link = s[2] && D.links[s[0]];
       panel.innerHTML = `${HEAD}
       <div class="stp">${L.map(([k, l], i) => `<button type="button" class="st${i === step ? " on" : ""}${i < step ? " done" : ""}" data-go="${i}">${esc(l)}</button>`).join("")}</div>
-      <div class="body">${step ? posLine() : ""}${s[2] ? `<p class="hint">Chart is on ${esc(s[1])}. Position it, fill this in, then Continue grabs the chart.</p>` : ""}${B[s[0]]()}${s[0] === dateStep() ? f(`Entry date <button type="button" class="lnk inl" data-act="readdate" title="From the Long/Short position, or the replay date">⟳ from chart</button>`, `<input type="date" data-k="date" value="${esc(D.date)}">`) : ""}
+      <div class="body">${step ? posLine() : ""}${s[2] ? `<p class="hint">Chart is on ${esc(s[1])}. Position it, fill this in, then Continue grabs the chart.</p>` : ""}${B[s[0]]()}${s[0] === dateStep() ? f(`Date <button type="button" class="lnk inl" data-act="readdate" title="From the Long/Short position, or the replay date">⟳ from chart</button>`, `<input type="date" data-k="date" value="${esc(D.date)}">`) : ""}
         ${link ? `<div class="shot cur"><img src="${tvImg(link.match(/x\/([^/]+)/)[1])}" alt="${esc(s[1])} chart"><button type="button" class="rm" data-rm="${s[0]}" title="Remove">×</button></div>` : ""}</div>
       <div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb"><button type="button" class="lnk" data-act="stoplog" title="Stop for now. The trade is kept, so you can continue later.">Stop</button>${step ? `<button type="button" class="btn ghost" data-act="back" ${busy ? "disabled" : ""}>Back</button>` : ""}<span class="sp"></span>
         ${s.failed || (s[2] && msg && /didn't come/.test(msg)) ? `<button type="button" class="lnk" data-act="skip">Continue without chart</button>` : ""}
@@ -291,7 +306,7 @@
     if (d.act === "hide") { mini = true; store({ mini }); return render(); }
     if (d.act === "expand") { mini = false; store({ mini }); return render(); }
     if (d.act === "close") return toggle(false);
-    if (d.act === "log") { logging = true; store({ logging }); msg = ""; return startSteps(); }
+    if (d.act === "log") { savedId = ""; logging = true; store({ logging }); msg = ""; return startSteps(); }
     if (d.act === "stoplog") { logging = false; store({ logging }); msg = ""; return render(); }
     if (d.act === "discard") { const pj = D.project, pr = D.pair; D = { ...blank(), project: pj, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
     if (d.act === "posshow") { showPos(curPos()); return; }
@@ -303,9 +318,9 @@
       window.postMessage({ __tj: "fwd", sigs: trig.map((t) => t.sig), max: 300, until: days === 1 ? "D" : "W" }, location.origin); return; }
     if (d.act === "fwdstop") { window.postMessage({ __tj: "fwdstop" }, location.origin); return; }
     if (d.act === "trigadd") { window.postMessage({ __tj: "sig" }, location.origin); return; }
-    if (d.rmtrig != null) { trig = trig.filter((_, i) => i !== +d.rmtrig); store({ trig }); return render(); }
+    if (d.rmtrig != null) { trig = trig.filter((_, i) => i !== +d.rmtrig); saveSet({ trig }); return render(); }
     if (d.settab) { setTab = d.settab; return render(); }
-    if (d.look) { if (look.match && jLook) look = { ...look, theme: jLook.theme, accent: jLook.accent }; look.match = false; look[d.look] = d.v; store({ look }); applyLook(); return render(); }
+    if (d.look) { if (look.match && jLook) look = { ...look, theme: jLook.theme, accent: jLook.accent }; look.match = false; look[d.look] = d.v; saveSet({ look }); applyLook(); return render(); }
     if (d.act === "settings") { settings = !settings; msg = ""; return render(); }
     if (d.act === "next") return next();
     if (d.act === "back") return goStep(step - 1);
@@ -332,8 +347,8 @@
     if (d.k) { D[d.k] = D[d.k] === d.v ? "" : d.v; if (d.k === "fase" && D.concept && !(P.plan.faseConcepts[D.fase] || []).includes(D.concept)) { D.concept = ""; D.sub = ""; }
       if (d.k === "outcome" && d.v === "be" && D.r === "") D.r = "0"; keep(); return render(); }
   });
-  root.addEventListener("change", async (e) => { if (e.target.dataset && e.target.dataset.set === "autoFit") { autoFit = e.target.checked; store({ autoFit }); return; }
-    if (e.target.dataset && e.target.dataset.set === "match") { look.match = e.target.checked; if (!look.match && jLook) look = { ...look, theme: jLook.theme, accent: jLook.accent }; store({ look }); if (look.match) loadJLook(); else applyLook(); return render(); }
+  root.addEventListener("change", async (e) => { if (e.target.dataset && e.target.dataset.set === "autoFit") { autoFit = e.target.checked; saveSet({ autoFit }); return; }
+    if (e.target.dataset && e.target.dataset.set === "match") { look.match = e.target.checked; if (!look.match && jLook) look = { ...look, theme: jLook.theme, accent: jLook.accent }; saveSet({ look }); if (look.match) loadJLook(); else applyLook(); return render(); }
     const k = e.target.dataset && e.target.dataset.k; if (!k) return;
     if (k === "posPick") { D.posPick = e.target.value; const p = await fromPos(["dir", "date", "closeDate"]); showPos(p); msg = p ? "" : posWhy; return render(); }
     D[k] = e.target.value;
@@ -341,7 +356,7 @@
     if (e.target.tagName === "TEXTAREA" || e.target.type === "number" || e.target.type === "date" || k === "pair") { if (k === "pair") { D.pair = pairOf(D.pair); e.target.value = D.pair; } keep(); return; }
     if (k === "wPat") D.wPatSub = ""; if (k === "concept") D.sub = ""; if (k === "entry4h" && !hasStruct(D.entry4h)) { D.struct = ""; D.room = false; } if (k === "pair") D.pair = pairOf(D.pair);
     if (k === "project") store({ lastProject: D.project }); keep(); render(); });
-  root.addEventListener("input", (e) => { const k = e.target.dataset && e.target.dataset.k; if (k && (e.target.tagName === "TEXTAREA" || e.target.type === "number")) { D[k] = e.target.value; keep(); } });
+  root.addEventListener("input", (e) => { const k = e.target.dataset && e.target.dataset.k; if (k && (e.target.tagName === "TEXTAREA" || e.target.type === "number")) { D[k] = e.target.value; keep(); if (k === "slPips" || k === "tpPips") { const r = panel.querySelector("[data-rr]"); if (r) r.textContent = rrText(); } } });
   // keep TradingView from reacting to keys typed in the panel
   ["keydown", "keyup", "keypress"].forEach((t) => host.addEventListener(t, (e) => e.stopPropagation()));
 
@@ -350,7 +365,7 @@
     try { const p = await call("plan"); if (p && p.plan && p.wcrit) P = p; } catch {}
     try { projects = await call("projects"); } catch (e) { msg = "Couldn't load projects: " + e.message; }
     if (D.project && !projects.some((p) => p.id === D.project)) D.project = "";
-    loadJLook();
+    loadJLook(); loadSet();
   }
   (async () => {
     const pos = await load(); applyLook(); if (pos && pos.left) Object.assign(host.style, { left: pos.left, top: pos.top, right: "auto" });
@@ -361,7 +376,7 @@
 
   function CSS() { return `
   :host{all:initial}
-  *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+  *{box-sizing:border-box;font-family:"TJ Archivo",Archivo,system-ui,-apple-system,Segoe UI,sans-serif}
   .pill{position:fixed;right:16px;bottom:80px;width:46px;height:46px;border-radius:12px;border:0;padding:0;background:none;cursor:grab;box-shadow:0 6px 20px rgba(0,0,0,.4);touch-action:none;overflow:hidden}.pill:active{cursor:grabbing}.pill img{width:100%;height:100%;display:block;pointer-events:none;user-select:none}
   [hidden]{display:none!important}
   .panel{--bg:#161a2d;--in:#0e1120;--ink:#e6e8f3;--mut:#9299b8;--line:#283050;--soft:#1d2238;--good:#43c088;--bad:#f06c60;--acc:#8590ff;width:360px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.45);font-size:13px;overflow:hidden}
@@ -370,7 +385,7 @@
   .body{overflow-y:auto;overflow-x:hidden;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
   .login{display:grid;gap:10px}.login p{margin:0;color:var(--mut);line-height:1.45}
   .f{display:grid;gap:4px;min-width:0}.f>span{font-size:11px;font-weight:600;color:var(--mut)}.f>span em{font-weight:400;font-style:normal;opacity:.8;margin-left:4px}
-  .row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:start}.row3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end}
+  .row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:start}.row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:end}
   input,select,textarea{width:100%;font-size:13px;color:var(--ink);background:var(--in);border:1px solid var(--line);border-radius:7px;padding:6px 8px;outline:none}
   input:focus,select:focus,textarea:focus{border-color:var(--acc)}textarea{resize:vertical}
   .segs{display:flex;flex-wrap:wrap;gap:4px}
@@ -401,6 +416,7 @@
   .posl{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--in)}.posl span{color:var(--mut);font-weight:600;font-size:11px}.posl b{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.posl .lnk{margin:0}
   .fwd{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:6px 9px;border:1px solid var(--acc);border-radius:7px;font-size:12.5px}.fwdgo{justify-self:start}.trl{display:grid;gap:6px}.tr{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:5px 8px;border:1px solid var(--line);border-radius:7px}.tr i{width:14px;height:14px;border-radius:4px;border:1px solid var(--line)}.tr span{flex:1}.tr .lnk{font-size:16px;text-decoration:none}
   .newt{display:flex;align-items:center;gap:12px}.newt span{display:grid;gap:2px;font-size:13px}.newt small{color:var(--mut);font-size:12px}.fab{width:46px;height:46px;flex:none;border-radius:50%;border:0;background:var(--acc);color:#fff;font-size:30px;line-height:1;font-weight:400;padding:0 0 3px;cursor:pointer;box-shadow:0 6px 18px color-mix(in srgb,var(--acc) 40%,transparent)}.fab:hover{filter:brightness(1.08)}.skip{display:grid;gap:7px;border-top:1px solid var(--line);padding-top:10px}
+  .lnk.ext{justify-self:start;color:var(--acc);text-decoration:none;font-weight:600;font-size:12.5px}
   .ttl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}.sw{display:flex;gap:8px}.swb{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:inset 0 0 0 2px var(--bg)}.swb.on{border-color:var(--ink)}.chk{display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-top:4px}.chk input{width:auto;margin-top:2px;accent-color:var(--acc)}.chk small{display:block;color:var(--mut);font-size:11.5px;margin-top:2px}
   .btn.big{padding:11px 14px;font-size:14px}.idle{gap:12px}
   .msg{margin:0;font-size:12px;color:var(--ink);line-height:1.4}

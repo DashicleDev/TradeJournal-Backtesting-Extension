@@ -50,8 +50,13 @@ While a skip runs, **■ Stop** stops it. In ⚙ → Replay you can add your tem
 - **Fit chart after switching timeframe**: turns Auto (price scale) on and off after the panel switches timeframe.
 - **Same look as my journal**: uses the theme and accent colour from your journal. Untick it to pick your own.
 
+## Settings sync
+
+Your extension settings (fit chart, look, trigger styles) are saved in your journal account as well, so they follow you to another browser or PC.
+
 ## Privacy
 
 - Runs only on `tradingview.com/chart`.
 - Talks only to your journal's database and the journal's `plan.json`.
+- The font (Archivo, SIL Open Font License, see `fonts/OFL.txt`) ships with the extension.
 - It never sees your TradingView login. Your journal password goes straight to the journal's sign-in and is not stored. Only the session token is kept, in the browser's extension storage.

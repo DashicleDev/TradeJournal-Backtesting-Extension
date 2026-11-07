@@ -54,6 +54,10 @@ const handlers = {
       .sort((a, b) => (a.status === "closed") - (b.status === "closed") || (b.created || 0) - (a.created || 0));
   },
   async jsettings() { const rows = await rest("docs?select=data&id=eq.settings"); return (rows[0] && rows[0].data) || null; },
+  // the extension's own settings, as one document in your journal data (the journal ignores this kind)
+  async extLoad() { const rows = await rest("docs?select=data&id=eq.extsettings"); return (rows[0] && rows[0].data) || null; },
+  async extSave({ data }) { const s = await session(); if (!s) throw new Error("Not signed in");
+    await rest("docs", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify([{ user_id: s.uid, id: "extsettings", data: { ...data, id: "extsettings", kind: "extsettings", updated: Date.now() }, updated_at: new Date().toISOString() }]) }); return true; },
   async save({ doc }) {
     const s = await session();
     if (!s) throw new Error("Not signed in");
