@@ -51,7 +51,7 @@
     if (e.source !== window || !e.data || e.data.__tj !== "tf") return;
     const res = String(e.data.res || ""); let ok = false;
     const norm = (r) => String(r || "").toUpperCase().replace(/^1(?=[DWM]$)/, "");
-    try { const api0 = window.TradingViewApi, ch0 = api0 && api0.activeChart && api0.activeChart(); if (ch0 && ch0.resolution && norm(ch0.resolution()) === norm(res)) return window.postMessage({ __tj: "tfok", ok: true, same: true }, location.origin); } catch {}
+    try { const api0 = window.TradingViewApi, ch0 = api0 && api0.activeChart && api0.activeChart(); var prevRes = ch0 && ch0.resolution ? String(ch0.resolution()) : ""; if (prevRes && norm(prevRes) === norm(res)) return window.postMessage({ __tj: "tfok", ok: true, same: true, prev: prevRes }, location.origin); } catch {}
     try { const api = window.TradingViewApi, ch = api && (api.activeChart ? api.activeChart() : api.chart && api.chart()); if (ch && ch.setResolution) {
         // when the new timeframe has loaded: if Auto (price scale) was off, click it on and off again
         // so the chart fits the screen. Auto stays off, as you had it.
@@ -68,7 +68,7 @@
         Promise.resolve(ch.setResolution(res)).catch(() => {}).then(go); setTimeout(go, 2500);
         ok = true; } } catch {}
     if (!ok) { const alt = { "1W": ["1W", "W"], "1D": ["1D", "D"] }[res] || [res]; const b = alt.map((v) => document.querySelector(`#header-toolbar-intervals [data-value="${v}"]`)).find(Boolean); if (b) { b.click(); ok = true; } }
-    window.postMessage({ __tj: "tfok", ok }, location.origin);
+    window.postMessage({ __tj: "tfok", ok, prev: typeof prevRes === "string" ? prevRes : "" }, location.origin);
   });
 
   // The panel asks for the Long/Short Position drawing: the selected one, otherwise the one

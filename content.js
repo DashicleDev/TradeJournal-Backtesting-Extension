@@ -13,7 +13,7 @@
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
   let dd = null, mini = false, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
   const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "" });
-  let autoFit = true, settings = false, setTab = "chart", trig = [], fwd = null, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
+  let tfPrev = "", skipBack = "", autoFit = true, settings = false, setTab = "chart", trig = [], fwd = null, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
 
   /* ---------- look (same themes and accents as the journal) ---------- */
   const THEMES = {
@@ -119,7 +119,7 @@
   /* ---------- forward to drawing ---------- */
   addEventListener("message", (e) => {
     if (e.source !== window || !e.data) return;
-    if (e.data.__tj === "fwdst") { if (e.data.done) { fwd = null; msg = e.data.why || ""; } else fwd = { n: e.data.n }; render(); }
+    if (e.data.__tj === "fwdst") { if (e.data.done) { fwd = null; msg = e.data.why || ""; const back = skipBack; skipBack = ""; if (back && !e.data.hit) setTf(back); } else fwd = { n: e.data.n }; render(); }
     if (e.data.__tj === "sigok") { if (e.data.err) msg = e.data.err; else if (trig.some((t) => t.sig === e.data.sig)) msg = "That style is already in the list.";
       else { trig = [...trig, { sig: e.data.sig, name: e.data.name, color: e.data.color }]; store({ trig }); msg = ""; } render(); }
   });
@@ -128,7 +128,7 @@
 
   /* ---------- step by step ---------- */
   // ask the page to switch the chart's timeframe (hook.js does it through TradingView's own API)
-  const setTf = (res) => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "tfok") { removeEventListener("message", f); done(e.data.ok ? (e.data.same ? "same" : true) : false); } }; addEventListener("message", f); window.postMessage({ __tj: "tf", res, fit: autoFit }, location.origin); setTimeout(() => { removeEventListener("message", f); done(false); }, 1500); });
+  const setTf = (res) => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "tfok") { removeEventListener("message", f); tfPrev = e.data.prev || ""; done(e.data.ok ? (e.data.same ? "same" : true) : false); } }; addEventListener("message", f); window.postMessage({ __tj: "tf", res, fit: autoFit }, location.origin); setTimeout(() => { removeEventListener("message", f); done(false); }, 1500); });
   const steps = () => [["setup", "Trade"], ["weekly", "Weekly", "1W"], ["daily", "Daily", "1D"], ["h4", "4H", "240"],
     ...(D.entry4h === "Engulfing Candle" ? [["ltf", D.ecTf === "1h" ? "1H" : "2H", D.ecTf === "1h" ? "60" : "120"]] : []), ["result", "Result"]];
   const dateStep = () => steps().filter((x) => x[2]).pop()[0];
@@ -296,9 +296,9 @@
     if (d.act === "discard") { const pj = D.project, pr = D.pair; D = { ...blank(), project: pj, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
     if (d.act === "posshow") { showPos(curPos()); return; }
     if (d.act === "posrefresh") { const p = await fromPos(["dir", "date", "closeDate"]); msg = p ? "" : posWhy; return render(); }
-    if (d.act === "fwd") { fwd = { n: 0 }; msg = ""; render(); window.postMessage({ __tj: "fwd", sigs: trig.map((t) => t.sig), max: 300 }, location.origin); return; }
+    if (d.act === "fwd") { skipBack = ""; fwd = { n: 0 }; msg = ""; render(); window.postMessage({ __tj: "fwd", sigs: trig.map((t) => t.sig), max: 300 }, location.origin); return; }
     if (d.act === "skip1d" || d.act === "skip1w") { const days = d.act === "skip1d" ? 1 : 7; fwd = { n: 0 }; msg = ""; render();
-      const ok = await setTf("240"); if (!ok) { fwd = null; msg = "Switch the chart to 4H yourself, then try again."; return render(); }
+      const ok = await setTf("240"); skipBack = ok === true ? tfPrev : ""; if (!ok) { fwd = null; msg = "Switch the chart to 4H yourself, then try again."; return render(); }
       if (ok !== "same") await new Promise((r) => setTimeout(r, 600));
       window.postMessage({ __tj: "fwd", sigs: trig.map((t) => t.sig), max: 300, until: days === 1 ? "D" : "W" }, location.origin); return; }
     if (d.act === "fwdstop") { window.postMessage({ __tj: "fwdstop" }, location.origin); return; }
