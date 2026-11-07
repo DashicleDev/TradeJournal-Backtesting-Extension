@@ -55,21 +55,23 @@
     window.postMessage({ __tj: "tfok", ok }, location.origin);
   });
 
-  // The panel asks for the Long/Short Position drawing: the selected one, otherwise the newest
-  // one that hasn't been used for a saved trade yet.
+  // The panel asks for the Long/Short Position drawing: the selected one, otherwise the one
+  // with the latest entry.
   window.addEventListener("message", (e) => {
     if (e.source !== window || !e.data || e.data.__tj !== "pos") return;
-    let pos = null, n = 0, apiOk = false;
+    let pos = null, n = 0, apiOk = false, selId = "", all = [];
     try {
       const api = window.TradingViewApi, ch = api && (api.activeChart ? api.activeChart() : api.chart && api.chart());
-      const all = ((ch && ch.getAllShapes && ch.getAllShapes()) || []).filter((s) => /^(long|short)_position$/.test(s.name));
+      all = ((ch && ch.getAllShapes && ch.getAllShapes()) || []).filter((s) => /^(long|short)_position$/.test(s.name));
       apiOk = !!(ch && ch.getAllShapes); n = all.length;
       let sel = []; try { sel = ch.selection().allSources() || []; } catch {}
-      const skip = e.data.skip || [], pick = all.filter((s) => sel.includes(s.id)).pop() || all.filter((s) => !skip.includes(s.id)).pop();
-      if (pick) { const pts = (ch.getShapeById(pick.id).getPoints() || []).filter((p) => p && p.time); const ts = pts.map((p) => p.time).sort((a, b) => a - b);
-        pos = { id: pick.id, dir: pick.name.startsWith("long") ? "long" : "short", t0: ts[0] || null, t1: ts.length > 1 ? ts[ts.length - 1] : null }; }
+      const list = all.map((s) => { let ts = []; try { ts = (ch.getShapeById(s.id).getPoints() || []).map((p) => p && p.time).filter(Boolean).sort((a, b) => a - b); } catch {}
+        return { id: s.id, dir: s.name.startsWith("long") ? "long" : "short", t0: ts[0] || null, t1: ts.length > 1 ? ts[ts.length - 1] : null }; });
+      list.sort((a, b) => (b.t0 || 0) - (a.t0 || 0)); all.length = 0; all.push(...list);
+      const s = list.find((p) => sel.includes(p.id)); selId = s ? s.id : "";
+      pos = s || list[0] || null;
     } catch {}
-    window.postMessage({ __tj: "posinfo", pos, n, api: apiOk }, location.origin);
+    window.postMessage({ __tj: "posinfo", pos, n, api: apiOk, list: all, selId }, location.origin);
   });
 
   // The panel asks for the current symbol / interval / replay date; we read what we can.

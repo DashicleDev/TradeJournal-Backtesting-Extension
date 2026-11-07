@@ -84,12 +84,12 @@
   }
 
   /* ---------- long / short position tool ---------- */
-  // hook.js reads the selected (or newest) Long/Short Position drawing. Positions used for a saved
-  // trade are skipped next time, unless you select one.
-  let usedPos = [], posWhy = "";
-  chrome.storage.local.get("usedPos").then((o) => { usedPos = o.usedPos || []; });
-  const getPos = () => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "posinfo") { removeEventListener("message", f); posWhy = e.data.pos ? "" : !e.data.api ? "Couldn't read the drawings on this chart." : e.data.n ? "The position on the chart was used for a saved trade. Select it to use it again." : "No Long/Short position on the chart yet."; done(e.data.pos || null); } }; addEventListener("message", f); window.postMessage({ __tj: "pos", skip: usedPos }, location.origin); setTimeout(() => { removeEventListener("message", f); posWhy = "Couldn't read the drawings on this chart."; done(null); }, 800); });
+  // hook.js reads the selected Long/Short Position drawing, otherwise the one with the latest entry.
+  let posWhy = "", posList = [];
+  const getPos = () => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "posinfo") { removeEventListener("message", f); posList = e.data.list || []; const chosen = !e.data.selId && D.posPick && posList.find((x) => x.id === D.posPick); if (chosen) e.data.pos = chosen; if (e.data.selId) D.posPick = ""; posWhy = e.data.pos ? "" : !e.data.api ? "Couldn't read the drawings on this chart." : "No Long/Short position on the chart yet."; done(e.data.pos || null); } }; addEventListener("message", f); window.postMessage({ __tj: "pos" }, location.origin); setTimeout(() => { removeEventListener("message", f); posWhy = "Couldn't read the drawings on this chart."; done(null); }, 800); });
   const day = (t) => t ? new Date(t * 1000).toISOString().slice(0, 10) : "";
+  const posLab = (p) => { const d = (t) => t ? new Date(t * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" }) : "?"; return `${p.dir === "long" ? "↑ Long" : "↓ Short"} · ${d(p.t0)}${p.t1 ? " → " + d(p.t1) : ""}`; };
+  const posSel = () => posList.length ? f(`Position <button type="button" class="lnk inl" data-act="posrefresh" title="Look for positions on the chart again">⟳</button>`, `<select data-k="posPick">${posList.map((p) => `<option value="${esc(p.id)}" ${p.id === D.posId ? "selected" : ""}>${esc(posLab(p))}</option>`).join("")}</select>`) : "";
   // fills empty fields only, unless "force" lists the fields to overwrite
   async function fromPos(force = []) {
     const p = await getPos(); if (!p) return null; D.posId = p.id;
@@ -147,7 +147,6 @@
     const miss = missing(); if (miss.length) { msg = "Still needed: " + miss.join(", ") + (view === "steps" && !D.date ? ` (on the ${steps().find((x) => x[0] === dateStep())[1]} step)` : "") + "."; return render(); }
     busy = true; render();
     try { const doc = toDoc(); await call("save", { doc }); const pj = D.project, pr = D.pair;
-      if (D.posId) { usedPos = [...usedPos.filter((x) => x !== D.posId), D.posId].slice(-50); store({ usedPos }); }
       D = { ...blank(), project: pj, pair: pr }; store({ draft: D, lastProject: pj });
       msg = `Saved ${doc.pair} ${doc.dir} to ${(projects.find((p) => p.id === pj) || {}).name || "Backtest"}.`; if (view === "steps") { step = 0; logging = false; store({ step, logging }); } }
     catch (e) { msg = "Couldn't save: " + e.message; }
@@ -185,7 +184,7 @@
     const B = { setup: () => `      ${f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`)}
       <div class="row2">${f(`Pair <button type="button" class="lnk inl" data-act="read" title="Read pair and replay date from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" list="tjpairs" autocomplete="off"><datalist id="tjpairs">${String((pj && pj.pairs) || "").split(/[\s,]+/).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`)}
         ${view === "steps" ? f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir)) : f("Entry date", `<input type="date" data-k="date" value="${esc(D.date)}">`)}</div>
-      ${view === "steps" ? "" : f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir))}`, weekly: () => `
+      ${view === "steps" ? "" : f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir))}${posSel()}`, weekly: () => `
         <div class="row2">${f("Phase", seg("fase", [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]], String(D.fase)))}${f("Inner / outer", seg("wStruct", [["inner", "Inner"], ["outer", "Outer"]], D.wStruct))}</div>
         <div class="row2">${f("Market trend", seg("trend", MS, D.trend))}${f("Market structure", seg("ms", MS, D.ms))}</div>
         <div class="row2">${f("Ranging", `<div class="segs"><button type="button" class="sg${D.wRange ? " on" : ""}" data-tog="wRange">↔ Ranging</button></div>`)}
@@ -266,6 +265,7 @@
     if (d.act === "log") { logging = true; store({ logging }); msg = ""; return startSteps(); }
     if (d.act === "stoplog") { logging = false; store({ logging }); msg = ""; return render(); }
     if (d.act === "discard") { const pj = D.project, pr = D.pair; D = { ...blank(), project: pj, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
+    if (d.act === "posrefresh") { const p = await fromPos(["dir", "date", "closeDate"]); msg = p ? "" : posWhy; return render(); }
     if (d.act === "next") return next();
     if (d.act === "back") return goStep(step - 1);
     if (d.act === "skip") { msg = ""; return goStep(step + 1); }
@@ -291,7 +291,9 @@
     if (d.k) { D[d.k] = D[d.k] === d.v ? "" : d.v; if (d.k === "fase" && D.concept && !(P.plan.faseConcepts[D.fase] || []).includes(D.concept)) { D.concept = ""; D.sub = ""; }
       if (d.k === "outcome" && d.v === "be" && D.r === "") D.r = "0"; keep(); return render(); }
   });
-  root.addEventListener("change", (e) => { const k = e.target.dataset && e.target.dataset.k; if (!k) return; D[k] = e.target.value;
+  root.addEventListener("change", async (e) => { const k = e.target.dataset && e.target.dataset.k; if (!k) return;
+    if (k === "posPick") { D.posPick = e.target.value; const p = await fromPos(["dir", "date", "closeDate"]); msg = p ? "" : posWhy; return render(); }
+    D[k] = e.target.value;
     // typing fields: no re-render, so a click that caused the blur (e.g. Save) isn't lost
     if (e.target.tagName === "TEXTAREA" || e.target.type === "number" || e.target.type === "date" || k === "pair") { if (k === "pair") { D.pair = pairOf(D.pair); e.target.value = D.pair; } keep(); return; }
     if (k === "wPat") D.wPatSub = ""; if (k === "concept") D.sub = ""; if (k === "entry4h" && !hasStruct(D.entry4h)) { D.struct = ""; D.room = false; } if (k === "pair") D.pair = pairOf(D.pair);

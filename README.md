@@ -34,7 +34,7 @@ Click the logo, then **＋ Log trade**. The panel walks you through the trade:
 4. **Result**: fill it in and **Save trade**. It starts again at step 1 with the pair kept.
 
 **Long / Short Position tool:** draw it at the entry candle and stretch its right edge to the candle where the trade closed.
-The panel takes direction, entry date and close date from it (the selected one, otherwise the newest one not used yet).
+The panel takes direction, entry date and close date from it (the one selected on the chart, otherwise the one picked under **Position** on the first step, otherwise the one with the latest entry).
 It only fills empty fields, so you can still change the dates; **⟳ from chart** reads them again.
 
 **Stop** pauses logging and keeps the trade: the start screen then offers **Continue trade** or **Discard it**.
