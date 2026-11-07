@@ -81,8 +81,16 @@
       all = ((ch && ch.getAllShapes && ch.getAllShapes()) || []).filter((s) => /^(long|short)_position$/.test(s.name));
       apiOk = !!(ch && ch.getAllShapes); n = all.length;
       let sel = []; try { sel = ch.selection().allSources() || []; } catch {}
-      const list = all.map((s) => { let ts = []; try { ts = (ch.getShapeById(s.id).getPoints() || []).map((p) => p && p.time).filter(Boolean).sort((a, b) => a - b); } catch {}
-        return { id: s.id, dir: s.name.startsWith("long") ? "long" : "short", t0: ts[0] || null, t1: ts.length > 1 ? ts[ts.length - 1] : null }; });
+      // the chart's tick size, to turn the box's stop / target (stored in ticks) into prices
+      let tick = 0; try { const si = window.TradingViewApi._activeChartWidgetWV.value().chartModel().mainSeries().symbolInfo(); tick = (si.minmov || 1) / si.pricescale; } catch {}
+      const list = all.map((s) => { let ts = [], entry = null, sl = null, tp = null;
+        try { const sh = ch.getShapeById(s.id), pts = sh.getPoints() || []; ts = pts.map((p) => p && p.time).filter(Boolean).sort((a, b) => a - b);
+          entry = Number(pts[0] && pts[0].price); const pr = sh.getProperties() || {}, long = s.name.startsWith("long");
+          const sP = Number(pr.stopPrice ?? pr.stopLossPrice), tP = Number(pr.targetPrice ?? pr.profitPrice ?? pr.takeProfitPrice);
+          if (isFinite(sP) && sP) sl = sP; else if (tick && isFinite(+pr.stopLevel)) sl = entry + (long ? -1 : 1) * pr.stopLevel * tick;
+          if (isFinite(tP) && tP) tp = tP; else if (tick && isFinite(+pr.profitLevel)) tp = entry + (long ? 1 : -1) * pr.profitLevel * tick;
+          if (!isFinite(entry)) entry = null; } catch {}
+        return { id: s.id, dir: s.name.startsWith("long") ? "long" : "short", t0: ts[0] || null, t1: ts.length > 1 ? ts[ts.length - 1] : null, entry, sl, tp }; });
       list.sort((a, b) => (b.t0 || 0) - (a.t0 || 0)); all.length = 0; all.push(...list);
       const s = list.find((p) => sel.includes(p.id)); selId = s ? s.id : "";
       pos = s || list[0] || null;

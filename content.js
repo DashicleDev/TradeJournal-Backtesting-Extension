@@ -126,7 +126,12 @@
   async function fromPos(force = []) {
     const p = await getPos(); if (!p) return null; D.posId = p.id; showPos(p, false);
     const set = (k, v) => { if (v && (force.includes(k) || !D[k])) D[k] = v; };
-    set("dir", p.dir); set("date", day(p.t0)); set("closeDate", day(p.t1)); keep(); return p;
+    set("dir", p.dir); set("date", day(p.t0)); set("closeDate", day(p.t1));
+    // planned entry, stop and target in pips (0.0001; JPY 0.01; gold 0.1)
+    if (p.entry) { const pr = pairOf(D.pair), pip = /JPY/.test(pr) ? 0.01 : /XAU/.test(pr) ? 0.1 : /XAG/.test(pr) ? 0.01 : 0.0001, r1 = (x) => String(Math.round(x * 10) / 10);
+      const dec = String(p.entry).split(".")[1]; set("planEntry", String(+p.entry.toFixed(Math.min(6, Math.max(2, dec ? dec.length : 5)))));
+      if (p.sl) set("slPips", r1(Math.abs(p.entry - p.sl) / pip)); if (p.tp) set("tpPips", r1(Math.abs(p.tp - p.entry) / pip)); }
+    keep(); return p;
   }
   const replayDate = async () => { await ask(); return dateOf(info.replay); };
 
@@ -314,7 +319,7 @@
     if (d.act === "stoplog") { logging = false; store({ logging }); msg = ""; return render(); }
     if (d.act === "discard") { const pj = D.project, pr = D.pair; D = { ...blank(), project: pj, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
     if (d.act === "posshow") { showPos(curPos()); return; }
-    if (d.act === "posrefresh") { const p = await fromPos(["dir", "date", "closeDate"]); msg = p ? "" : posWhy; return render(); }
+    if (d.act === "posrefresh") { const p = await fromPos(["dir", "date", "closeDate", "planEntry", "slPips", "tpPips"]); msg = p ? "" : posWhy; return render(); }
     if (d.act === "fwd") { skipBack = ""; fwd = { n: 0 }; msg = ""; render(); window.postMessage({ __tj: "fwd", specs: onSigs(), max: 300 }, location.origin); return; }
     if ((d.act === "skip1d" || d.act === "skip1w" || d.act === "fwd") && trig.length && !onSigs().length) { msg = "All your styles are off. Turn at least one on."; return render(); }
     if (d.act === "skip1d" || d.act === "skip1w") { const days = d.act === "skip1d" ? 1 : 7; fwd = { n: 0 }; msg = ""; render();
@@ -338,7 +343,7 @@
       if (p && D[k] === day(k === "date" ? p.t0 : p.t1)) msg = `From the ${p.dir === "long" ? "Long" : "Short"} position.`;
       else { const dt = await replayDate(); if (dt) D[k] = dt; msg = dt ? "From the replay date. " + posWhy : "Couldn't read the date, so fill it in yourself."; }
       keep(); return render(); }
-    if (d.act === "read") { await ask(); if (info.symbol) D.pair = pairOf(info.symbol); const p = await fromPos(["dir", "date", "closeDate"]); if (!p) { const dt = dateOf(info.replay); if (dt) D.date = dt; } msg = p ? `Direction and dates from the ${p.dir === "long" ? "Long" : "Short"} position.` : D.date ? posWhy : "Couldn't read the replay date, so fill it in yourself."; keep(); return render(); }
+    if (d.act === "read") { await ask(); if (info.symbol) D.pair = pairOf(info.symbol); const p = await fromPos(["dir", "date", "closeDate", "planEntry", "slPips", "tpPips"]); if (!p) { const dt = dateOf(info.replay); if (dt) D.date = dt; } msg = p ? `Direction and dates from the ${p.dir === "long" ? "Long" : "Short"} position.` : D.date ? posWhy : "Couldn't read the replay date, so fill it in yourself."; keep(); return render(); }
     if (d.sec) { collapsed[d.sec] = !collapsed[d.sec]; store({ collapsed }); return render(); }
     if (d.arm) return arm(d.arm);
     if (d.rm) { delete D.links[d.rm]; keep(); return render(); }
@@ -355,7 +360,7 @@
     if (e.target.dataset && e.target.dataset.set === "autoFit") { autoFit = e.target.checked; saveSet({ autoFit }); return; }
     if (e.target.dataset && e.target.dataset.set === "match") { look.match = e.target.checked; if (!look.match && jLook) look = { ...look, theme: jLook.theme, accent: jLook.accent }; saveSet({ look }); if (look.match) loadJLook(); else applyLook(); return render(); }
     const k = e.target.dataset && e.target.dataset.k; if (!k) return;
-    if (k === "posPick") { D.posPick = e.target.value; const p = await fromPos(["dir", "date", "closeDate"]); showPos(p); msg = p ? "" : posWhy; return render(); }
+    if (k === "posPick") { D.posPick = e.target.value; const p = await fromPos(["dir", "date", "closeDate", "planEntry", "slPips", "tpPips"]); showPos(p); msg = p ? "" : posWhy; return render(); }
     D[k] = e.target.value;
     // typing fields: no re-render, so a click that caused the blur (e.g. Save) isn't lost
     if (e.target.tagName === "TEXTAREA" || e.target.type === "number" || e.target.type === "date" || k === "pair") { if (k === "pair") { D.pair = pairOf(D.pair); e.target.value = D.pair; } keep(); return; }
