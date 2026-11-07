@@ -13,11 +13,11 @@
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
   let dd = null, mini = false, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
   const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "" });
-  let D = blank(), collapsed = {}, view = "steps", step = 0, snapWait = null;
+  let D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
 
   /* ---------- storage ---------- */
   const store = (o) => chrome.storage.local.set(o);
-  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step"]); mini = !!o.mini; view = o.view || "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
+  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step", "logging"]); mini = !!o.mini; logging = !!o.logging; view = o.view || "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
   let saveT; const keep = () => { clearTimeout(saveT); saveT = setTimeout(() => store({ draft: D }), 250); };
 
   /* ---------- shell ---------- */
@@ -36,7 +36,7 @@
   pill.addEventListener("pointerup", () => { if (!pd) return; const m = pd.moved; pd = null; if (m) store({ pillPos: { left: pill.style.left, top: pill.style.top } }); else toggle(true); });
   chrome.storage.local.get("pillPos").then((o) => { if (o.pillPos && o.pillPos.left) Object.assign(pill.style, { left: o.pillPos.left, top: o.pillPos.top, right: "auto", bottom: "auto" }); });
   chrome.runtime.onMessage.addListener((m) => { if (m && m.type === "toggle") toggle(!open); });
-  function toggle(v) { open = v; store({ open }); panel.hidden = !open; pill.hidden = open; if (open) { if (view === "steps" && user && !mini) startSteps(); else render(); } }
+  function toggle(v) { open = v; store({ open }); panel.hidden = !open; pill.hidden = open; if (open) render(); }
 
   // drag by header
   let drag = null;
@@ -148,7 +148,7 @@
     try { const doc = toDoc(); await call("save", { doc }); const pj = D.project, pr = D.pair;
       if (D.posId) { usedPos = [...usedPos.filter((x) => x !== D.posId), D.posId].slice(-50); store({ usedPos }); }
       D = { ...blank(), project: pj, pair: pr }; store({ draft: D, lastProject: pj });
-      msg = `Saved ${doc.pair} ${doc.dir} to ${(projects.find((p) => p.id === pj) || {}).name || "Backtest"}.`; if (view === "steps") { step = 0; store({ step }); } }
+      msg = `Saved ${doc.pair} ${doc.dir} to ${(projects.find((p) => p.id === pj) || {}).name || "Backtest"}.`; if (view === "steps") { step = 0; logging = false; store({ step, logging }); } }
     catch (e) { msg = "Couldn't save: " + e.message; }
     busy = false; render();
   }
@@ -207,16 +207,24 @@
         ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}`,
       ltf: () => `<p class="hint">Find the reversal on the ${curStep()[1]}, then continue to grab the chart.</p>` };
     const HEAD = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="view" title="${view === "steps" ? "Show all fields" : "Step by step"}">${view === "steps" ? "☰" : "▶"}</button><button type="button" class="x x2" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x x2" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`;
-    if (view === "steps") {
+    if (view === "steps" && !logging) {
+      const draft = D.dir || D.fase || D.concept || D.entry4h || Object.keys(D.links).length;
+      panel.innerHTML = `${HEAD}<div class="body idle">
+        ${f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`)}
+        ${draft ? `<p class="hint">Unfinished trade: ${esc([D.pair, D.dir && (D.dir === "long" ? "↑ Long" : "↓ Short"), steps()[step] && "at " + steps()[step][1]].filter(Boolean).join(" · "))}</p>
+          <button type="button" class="btn pri big" data-act="log">▶ Continue trade</button><button type="button" class="btn ghost" data-act="discard">Discard it</button>`
+        : `<button type="button" class="btn pri big" data-act="log">＋ Log trade</button><p class="hint">Opens the Weekly, then Daily and 4H, grabbing each chart as you go.</p>`}
+      </div><div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb"><span class="sp"></span><button type="button" class="lnk" data-act="logout" title="${esc(user.email)}">Sign out</button></div></div>`;
+    } else if (view === "steps") {
       const L = steps(), s = curStep(), last = step === L.length - 1, link = s[2] && D.links[s[0]];
       panel.innerHTML = `${HEAD}
       <div class="stp">${L.map(([k, l], i) => `<button type="button" class="st${i === step ? " on" : ""}${i < step ? " done" : ""}" data-go="${i}">${esc(l)}</button>`).join("")}</div>
       <div class="body">${s[2] ? `<p class="hint">Chart is on ${esc(s[1])}. Position it, fill this in, then Continue grabs the chart.</p>` : ""}${B[s[0]]()}${s[0] === dateStep() ? f(`Entry date <button type="button" class="lnk inl" data-act="readdate" title="From the Long/Short position, or the replay date">⟳ from chart</button>`, `<input type="date" data-k="date" value="${esc(D.date)}">`) : ""}
         ${link ? `<div class="shot cur"><img src="${tvImg(link.match(/x\/([^/]+)/)[1])}" alt="${esc(s[1])} chart"><button type="button" class="rm" data-rm="${s[0]}" title="Remove">×</button></div>` : ""}</div>
-      <div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb">${step ? `<button type="button" class="btn ghost" data-act="back" ${busy ? "disabled" : ""}>Back</button>` : ""}<span class="sp"></span>
+      <div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb"><button type="button" class="lnk" data-act="stoplog" title="Stop for now. The trade is kept, so you can continue later.">Stop</button>${step ? `<button type="button" class="btn ghost" data-act="back" ${busy ? "disabled" : ""}>Back</button>` : ""}<span class="sp"></span>
         ${s.failed || (s[2] && msg && /didn't come/.test(msg)) ? `<button type="button" class="lnk" data-act="skip">Continue without chart</button>` : ""}
         <button type="button" class="btn pri" data-act="next" ${busy ? "disabled" : ""}>${busy ? (last ? "Saving…" : "Grabbing…") : last ? "Save trade" : s[2] ? "📷 Continue" : "Continue"}</button></div>
-        ${step === 0 ? `<div class="fb"><button type="button" class="btn ghost sm" data-act="clear">Clear</button><span class="sp"></span><button type="button" class="lnk" data-act="logout" title="${esc(user.email)}">Sign out</button></div>` : ""}</div>`;
+</div>`;
     } else {
     panel.innerHTML = `${HEAD}
     <div class="body">
@@ -242,7 +250,7 @@
   root.addEventListener("submit", async (e) => {
     e.preventDefault(); const fd = new FormData(e.target); lastEmail = fd.get("email") || ""; busy = true; msg = ""; render();
     try { user = await call("login", { email: fd.get("email"), password: fd.get("password") }); await boot(); }
-    catch (er) { msg = er.message; } busy = false; if (user && view === "steps") return startSteps(); render();
+    catch (er) { msg = er.message; } busy = false; render();
   });
   root.addEventListener("click", async (e) => {
     const box = e.target.closest("[data-dd]");
@@ -251,9 +259,12 @@
     const t = e.target.closest("button"); if (!t) return;
     const d = t.dataset;
     if (d.act === "hide") { mini = true; store({ mini }); return render(); }
-    if (d.act === "expand") { mini = false; store({ mini }); if (view === "steps") return startSteps(); return render(); }
+    if (d.act === "expand") { mini = false; store({ mini }); return render(); }
     if (d.act === "close") return toggle(false);
-    if (d.act === "view") { view = view === "steps" ? "form" : "steps"; store({ view }); msg = ""; if (view === "steps") return startSteps(); return render(); }
+    if (d.act === "view") { view = view === "steps" ? "form" : "steps"; store({ view }); msg = ""; return render(); }
+    if (d.act === "log") { logging = true; store({ logging }); msg = ""; return startSteps(); }
+    if (d.act === "stoplog") { logging = false; store({ logging }); msg = ""; return render(); }
+    if (d.act === "discard") { const pj = D.project, pr = D.pair; D = { ...blank(), project: pj, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
     if (d.act === "next") return next();
     if (d.act === "back") return goStep(step - 1);
     if (d.act === "skip") { msg = ""; return goStep(step + 1); }
@@ -340,6 +351,7 @@
   .btn.sm{padding:5px 8px;font-size:12px}.btn.pri{background:#7c8cff;border-color:#7c8cff;color:#0b0e17}.btn.ghost{background:none}.btn:disabled{opacity:.6;cursor:default}
   .foot{border-top:1px solid #2a3046;padding:10px 12px;display:grid;gap:8px}.fb{display:flex;gap:8px;align-items:center}.sp{flex:1}
   .lnk{background:none;border:0;color:#8d94ad;font-size:12px;cursor:pointer;text-decoration:underline}.lnk.inl{font-size:11px;padding:0;margin-left:6px;color:#9aa6ff;text-decoration:none}
+  .btn.big{padding:11px 14px;font-size:14px}.idle{gap:12px}
   .msg{margin:0;font-size:12px;color:#c8cdf9;line-height:1.4}
   .stp{display:flex;gap:3px;padding:8px 12px 0}.st{flex:1;min-width:0;border:0;border-bottom:2px solid #2a3046;background:none;color:#8d94ad;font-size:11px;font-weight:600;padding:4px 2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .st.done{color:#7fe0b4;border-color:#3bbd85}.st.on{color:#e8ebf5;border-color:#7c8cff}

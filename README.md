@@ -25,7 +25,7 @@ To update: replace the folder with the new version (or `git pull` if you cloned 
 
 ## Using it in bar replay
 
-Click the logo. The panel walks you through the trade:
+Click the logo, then **＋ Log trade**. The panel walks you through the trade:
 
 1. **Trade**: project, pair and direction (the pair is read from the chart).
 2. **Weekly**: the chart switches to 1W. Position it, fill in the weekly analysis, click **📷 Continue**.
@@ -36,6 +36,8 @@ Click the logo. The panel walks you through the trade:
 **Long / Short Position tool:** draw it at the entry candle and stretch its right edge to the candle where the trade closed.
 The panel takes direction, entry date and close date from it (the selected one, otherwise the newest one not used yet).
 It only fills empty fields, so you can still change the dates; **⟳ from chart** reads them again.
+
+**Stop** pauses logging and keeps the trade: the start screen then offers **Continue trade** or **Discard it**.
 
 **Back** or the step tabs go to an earlier step (the chart switches back too).
 **☰** shows all fields on one page instead.
