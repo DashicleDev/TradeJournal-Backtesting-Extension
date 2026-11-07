@@ -118,7 +118,7 @@
   };
   const rgb = (v) => { const s = String(v).trim().toLowerCase(); let m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/.exec(s); if (m) return [0, 2, 4].map((i) => parseInt(m[1].substr(i, 2), 16)).join(",");
     m = /^#([0-9a-f]{3})$/.exec(s); if (m) return [...m[1]].map((c) => parseInt(c + c, 16)).join(","); m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(s); return m ? [m[1], m[2], m[3]].map(Number).join(",") : ""; };
-  const looseSig = (sig) => { const i = sig.indexOf("|"); let kv = []; try { kv = JSON.parse(sig.slice(i + 1)); } catch {} return sig.slice(0, i) + "|" + [...new Set(kv.filter(([k]) => /color$/i.test(k)).map(([, v]) => rgb(v)).filter(Boolean))].sort().join(" "); };
+  const looseSig = (sig) => { const i = sig.indexOf("|"); let kv = []; try { kv = JSON.parse(sig.slice(i + 1)); } catch {} return sig.slice(0, i).replace("horizontal_ray", "horizontal_line") + "|" + [...new Set(kv.filter(([k]) => /color$/i.test(k)).map(([, v]) => rgb(v)).filter(Boolean))].sort().join(" "); };
   const textOf = (ch, s) => { try { const pr = ch.getShapeById(s.id).getProperties() || {}; return String(pr.text || (pr.label && pr.label.text) || "").trim(); } catch { return ""; } };
   const normT = (t) => String(t || "").trim().replace(/\s+/g, " ").toLowerCase();
   const swatch = (sig) => { const m = /"(#[0-9a-fA-F]{6,8}|rgba?\([^"]+\))"/.exec(sig); return m ? m[1] : ""; };
@@ -161,7 +161,21 @@
       let bar = lastBar(); if (!bar) return say({ done: true, why: "Couldn't read the candles." });
       // drawings the current candle already touches don't count
       let watch = pick().filter((L) => !touches(bar, L));
-      if (!watch.length) return say({ done: true, why: (sigs.length ? "No lines or rectangles in your trigger styles ahead of price." : "No horizontal lines or rectangles ahead of price.") });
+      if (!watch.length) {
+        let why = sigs.length ? "No lines or rectangles in your trigger styles ahead of price." : "No horizontal lines or rectangles ahead of price.";
+        if (specs.length) { // say what differs for the drawings that are on the chart
+          const tool = (ls) => ls.split("|")[0], cols = (ls) => ls.split("|")[1];
+          const notes = ch.getAllShapes().filter((s) => LEVELS.test(s.name)).slice(0, 6).map((s) => {
+            const ls = looseSig(styleOf(ch, s)), tx = normT(textOf(ch, s)), nm = textOf(ch, s) || s.name.replace("horizontal_", "").replace("_", " ");
+            if (specs.some((t) => t.ls === ls && t.tx === tx)) return `${nm}: matches, but price already touches it`;
+            const same = specs.find((t) => t.tx === tx) || specs.find((t) => tool(t.ls) === tool(ls) && cols(t.ls) === cols(ls));
+            if (!same) return `${nm}: no style with this text`;
+            const d = [tool(same.ls) !== tool(ls) && "other tool", cols(same.ls) !== cols(ls) && "other colour", same.tx !== tx && "other text"].filter(Boolean).join(", ");
+            return `${nm}: ${d || "different"}`; });
+          if (notes.length) why += " On the chart: " + notes.join("; ") + ".";
+        }
+        return say({ done: true, why });
+      }
       const start = bar[0], maxSec = e.data.maxSec || 0, until = e.data.until ? nextClose(bar[0] + 14400, e.data.until) : 0;
       for (let n = 1; n <= max; n++) {
         if (fwdStop) return say({ done: true, why: `Stopped after ${n - 1} candles.` });
