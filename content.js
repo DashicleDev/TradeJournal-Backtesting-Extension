@@ -101,6 +101,9 @@
   }
   const replayDate = async () => { await ask(); return dateOf(info.replay); };
 
+  // short note from the page after a timeframe switch (Auto scale refit)
+  addEventListener("message", (e) => { if (e.source === window && e.data && e.data.__tj === "fitlog" && !busy) { msg = e.data.m; render(); } });
+
   /* ---------- step by step ---------- */
   // ask the page to switch the chart's timeframe (hook.js does it through TradingView's own API)
   const setTf = (res) => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "tfok") { removeEventListener("message", f); done(e.data.ok); } }; addEventListener("message", f); window.postMessage({ __tj: "tf", res }, location.origin); setTimeout(() => { removeEventListener("message", f); done(false); }, 1500); });

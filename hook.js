@@ -56,10 +56,12 @@
         const W = (ms) => new Promise((r) => setTimeout(r, ms)), frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))), W(150)]);
         const scale = () => { try { const p = ch.getPanes()[0]; return p.getMainSourcePriceScale() || p.getRightPriceScales()[0]; } catch { return null; } };
         const autoBtn = () => document.querySelector('button[aria-label="Toggle auto scale"]');
-        const isAuto = () => { const s = scale(); if (s && s.isAutoScale) return s.isAutoScale(); const b = autoBtn(); return !!b && /activated/.test(b.className); };
+        const isAuto = () => { const b = autoBtn(); if (b) return /activated/.test(b.className); const s = scale(); return !!(s && s.isAutoScale && s.isAutoScale()); };
         const flip = (v) => { const b = autoBtn(); if (b) b.click(); else { const s = scale(); if (s && s.setAutoScale) s.setAutoScale(v); } };
         const wasAuto = isAuto();
-        const fit = async () => { if (wasAuto) return; await W(800); await frame(); if (isAuto()) return; flip(true); await W(600); await frame(); if (isAuto()) flip(false); };
+        const say = (m) => window.postMessage({ __tj: "fitlog", m }, location.origin);
+        const fit = async () => { if (wasAuto) return say("Auto was on, left it on."); await W(800); await frame(); if (isAuto()) return say("Auto was on, left it on.");
+          flip(true); await W(600); await frame(); const on = isAuto(); if (on) flip(false); say(on ? "Chart refitted (Auto on and off)." : "Couldn't turn Auto on (button " + (autoBtn() ? "found" : "not found") + ")."); };
         let done = false; const go = () => { if (!done) { done = true; fit(); } };
         Promise.resolve(ch.setResolution(res)).catch(() => {}).then(go); setTimeout(go, 2500);
         ok = true; } } catch {}
