@@ -102,7 +102,9 @@
 
   // ---------- forward the replay until price hits a drawing ----------
   const chartApi = () => { const api = window.TradingViewApi; return api && (api.activeChart ? api.activeChart() : api.chart && api.chart()); };
-  const lastBar = () => { try { const b = window.TradingViewApi._activeChartWidgetWV.value().chartModel().mainSeries().bars().last(); return b && b.value; } catch { return null; } };
+  const barsOf = () => { try { return window.TradingViewApi._activeChartWidgetWV.value().chartModel().mainSeries().bars(); } catch { return null; } };
+  const lastBar = () => { const b = barsOf(), l = b && b.last(); return l && l.value ? l.value.slice() : null; };
+  const prevBar = () => { try { const b = barsOf(), v = b.valueAt(b.lastIndex() - 1); return v ? v.slice() : null; } catch { return null; } };
   const LEVELS = /^(horizontal_line|horizontal_ray|rectangle)$/;
   // a drawing's style: its tool plus every colour / width / line style it has (a template always gives the same)
   const styleOf = (ch, s) => {
@@ -146,9 +148,13 @@
         const t = bar[0]; rp.doStep();
         let nb = null; for (let i = 0; i < 60; i++) { await new Promise((r) => setTimeout(r, 50)); const b = lastBar(); if (b && b[0] !== t) { nb = b; break; } }
         if (!nb) return say({ done: true, why: `No new candle came in (after ${n - 1}). Is the replay at the end?` });
+        // the new candle fills in over a few updates: wait until it stops changing
+        let same = 0, key = nb.join(); for (let i = 0; i < 20 && same < 3; i++) { await new Promise((r) => setTimeout(r, 50)); const b = lastBar(); const k = b ? b.join() : key; if (k === key) same++; else { same = 0; key = k; nb = b; } }
         bar = nb; say({ n });
         if (maxSec && bar[0] - start > maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"}.` });
-        const hit = watch.find((L) => (!isFinite(L.t0) || L.t0 <= bar[0]) && touches(bar, L));
+        // check the new candle and the one before it (with its final high / low)
+        const pb = prevBar(), cands = [pb, bar].filter((b) => b && b[0] > start);
+        const hit = watch.find((L) => cands.some((b) => (!isFinite(L.t0) || L.t0 <= b[0]) && touches(b, L)));
         if (hit) return say({ done: true, hit: true, n, why: `Price hit the ${hit.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
         if (maxSec && bar[0] - start >= maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"} (${n} candles).` + info + ` now H ${fmt(bar[2])} L ${fmt(bar[3])}` });
       }
