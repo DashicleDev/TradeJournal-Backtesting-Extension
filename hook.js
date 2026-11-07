@@ -187,7 +187,10 @@
       if (switched) { try { ch.setResolution(e.data.res); } catch {} }
       // 3. first candle right away, not checked
       try { rp.doStep(); } catch {}
-      const loaded = () => { try { const b = barsOf(); return (!want || norm(ch.resolution()) === want) && b && (b.size ? b.size() : b.lastIndex() + 1) >= 1 && !!lastBar(); } catch { return false; } };
+      // loaded = the chart really shows 4H candles: TradingView reports the new timeframe before the old candles are gone,
+      // so look for two neighbouring candles exactly 4 hours apart
+      const step4h = () => { try { const b = barsOf(), last = b.lastIndex(); let n = 0; for (let k = 0; k < 8 && last - k - 1 >= 0; k++) { const x = b.valueAt(last - k), y = b.valueAt(last - k - 1); if (x && y && x[0] - y[0] === 14400) n++; } return n >= 3; } catch {} return false; };
+      const loaded = () => { try { const b = barsOf(); return (!want || norm(ch.resolution()) === want) && b && !!lastBar() && (!switched || want !== "240" || step4h()); } catch { return false; } };
       for (let i = 0; i < 300 && !loaded(); i++) await sleep(30);
       if (!loaded()) return say({ done: true, why: "The chart is still loading. Try again in a moment." });
       await sleep(40);
@@ -212,8 +215,8 @@
         if (!nb) return say({ done: true, why: `No new candle came in (after ${n - 1}). Is the replay at the end?` });
         bar = nb; say({ n });
         if (maxSec && bar[0] - start > maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"}.` });
-        // check the new candle and the one before it (with its final high / low)
-        const pb = prevBar(), cands = [pb, bar].filter((b) => b && b[0] > start);
+        // the last few candles: a candle can fill in after we've already stepped past it
+        const cands = (() => { const out = []; try { const b = barsOf(), last = b.lastIndex(); for (let k = 0; k < 5 && last - k >= 0; k++) { const v = b.valueAt(last - k); if (v && v[0] > start) out.push(v); } } catch {} if (!out.length && bar) out.push(bar); return out; })();
         const hit = watch.find((L) => cands.some((b) => (!isFinite(L.t0) || L.t0 <= b[0]) && touches(b, L)));
         if (hit) return say({ done: true, hit: true, n, ti: (hit || {}).ti, why: `Price hit the ${/rect/i.test(hit.name) ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
         if (until && bar[0] + 14400 >= until) {
