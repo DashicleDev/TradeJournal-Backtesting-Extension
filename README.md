@@ -27,10 +27,10 @@ To update: replace the folder with the new version (or `git pull` if you cloned 
 
 Click the logo. The panel walks you through the trade:
 
-1. **Trade**: project, pair, date and direction (pair and replay date are read from the chart).
+1. **Trade**: project, pair and direction (the pair is read from the chart).
 2. **Weekly**: the chart switches to 1W. Position it, fill in the weekly analysis, click **📷 Continue**.
    It grabs the chart and switches to the next timeframe.
-3. **Daily** (1D), **4H** (240) and, for an Engulfing Candle entry, **1H/2H**: the same.
+3. **Daily** (1D), **4H** (240) and, for an Engulfing Candle entry, **1H/2H**: the same. The entry date is on the last of these and is filled from the replay date.
 4. **Result**: fill it in and **Save trade**. It starts again at step 1 with the pair kept.
 
 **Back** or the step tabs go to an earlier step (the chart switches back too).
