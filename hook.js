@@ -135,8 +135,11 @@
       const touches = (b, L) => b[3] <= L.hi && b[2] >= L.lo; // bar = [time, open, high, low, close]
       let bar = lastBar(); if (!bar) return say({ done: true, why: "Couldn't read the candles." });
       // drawings the current candle already touches don't count
-      let watch = pick().filter((L) => !touches(bar, L));
-      if (!watch.length) return say({ done: true, why: sigs.length ? "No lines or rectangles in your trigger styles ahead of price." : "No horizontal lines or rectangles ahead of price." });
+      const allL = pick(), fmt = (x) => +x.toFixed(5), desc = (L) => (L.name === "rectangle" ? `rectangle ${fmt(L.lo)}–${fmt(L.hi)}` : `line ${fmt(L.lo)}`);
+      const shapes = ch.getAllShapes(), names = [...new Set(shapes.map((s) => s.name))].join(", ");
+      let watch = allL.filter((L) => !touches(bar, L));
+      const info = ` [watching: ${watch.map(desc).join("; ") || "none"}${allL.length > watch.length ? `; skipped (touched now): ${allL.filter((L) => touches(bar, L)).map(desc).join("; ")}` : ""}; drawings on chart: ${names || "none"}; last candle H ${fmt(bar[2])} L ${fmt(bar[3])}]`;
+      if (!watch.length) return say({ done: true, why: (sigs.length ? "No lines or rectangles in your trigger styles ahead of price." : "No horizontal lines or rectangles ahead of price.") + info });
       const start = bar[0], maxSec = e.data.maxSec || 0;
       for (let n = 1; n <= max; n++) {
         if (fwdStop) return say({ done: true, why: `Stopped after ${n - 1} candles.` });
@@ -147,9 +150,9 @@
         if (maxSec && bar[0] - start > maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"}.` });
         const hit = watch.find((L) => (!isFinite(L.t0) || L.t0 <= bar[0]) && touches(bar, L));
         if (hit) return say({ done: true, hit: true, n, why: `Price hit the ${hit.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
-        if (maxSec && bar[0] - start >= maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"} (${n} candles).` });
+        if (maxSec && bar[0] - start >= maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"} (${n} candles).` + info + ` now H ${fmt(bar[2])} L ${fmt(bar[3])}` });
       }
-      say({ done: true, why: `No hit in ${max} candles.` });
+      say({ done: true, why: `No hit in ${max} candles.` + info });
     } catch (err) { say({ done: true, why: "Couldn't forward the replay: " + String((err && err.message) || err) }); }
   });
 
