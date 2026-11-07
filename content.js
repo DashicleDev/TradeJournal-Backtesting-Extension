@@ -15,7 +15,7 @@
   const SLOTS = [["weekly", "Weekly"], ["daily", "Daily"], ["h4", "4H"], ["ltf", "1H/2H"], ["m12", "12M"], ["m6", "6M"], ["m3", "3M"], ["mo", "Monthly"], ["wk", "Weekly"]];
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
   let dd = null, mini = false, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
-  const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "", planEntry: "", slPips: "", tpPips: "" });
+  const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "", planEntry: "", slPips: "", tpPips: "", sExits: [] });
   let mkt = "fx", tmode = "backtest", accounts = [], savedId = "", tfPrev = "", skipBack = "", autoFit = true, settings = false, setTab = "chart", trig = [], fwd = null, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
 
   /* ---------- look (same themes and accents as the journal) ---------- */
@@ -153,7 +153,7 @@
   const steps = () => INV() ? [["setup", "Trade"], ["m12", "12M", "12M"], ["m6", "6M", "6M"], ["m3", "3M", "3M"], ["mo", "Monthly", "1M"], ["wk", "Weekly", "1W"], ["exec", "Execution"]]
     : [["setup", "Trade"], ["weekly", "Weekly", "1W"], ["daily", "Daily", "1D"], ["h4", "4H", "240"],
     ...(D.entry4h === "Engulfing Candle" ? [["ltf", D.ecTf === "1h" ? "1H" : "2H", D.ecTf === "1h" ? "60" : "120"]] : []), ["result", "Result"]];
-  const dateStep = () => steps().filter((x) => x[2]).pop()[0];
+  const dateStep = () => INV() ? "exec" : steps().filter((x) => x[2]).pop()[0];
   const missSetup = () => INV() ? [!D.pair && "ticker"].filter(Boolean) : [!D.pair && "pair", !D.dir && "direction"].filter(Boolean);
   const curStep = () => { const L = steps(); if (step >= L.length) step = L.length - 1; return L[step]; };
   const snapFor = (slot) => new Promise((done) => { snapWait = { slot, done }; armed = slot; clearTimeout(armTimer); trySnapshot(); setTimeout(() => { if (snapWait && snapWait.slot === slot) { snapWait = null; armed = null; done(false); } }, 6000); });
@@ -192,9 +192,10 @@
         s12Ms: D.s12Ms || "", s12bm: D.s12Ms === "for" ? D.s12bm || "" : "", s12ret: D.s12Ms === "against" ? D.s12ret || "" : "", s6Ms: D.s6Ms || "", s3Ms: D.s3Ms || "", s1Ms: D.s1Ms || "", swMs: D.swMs || "",
         sEntry: num(D.sEntry), sStop: num(D.sStop), notes: (D.notes || "").trim(), sCur: LIVE() ? D.sCur || "USD" : "USD", sFx: null, sShares: LIVE() ? num(D.sShares) : 1,
         // backtest: a notional position of 1, so the journal can work out R and % (exits are % of it)
-        sExits: !LIVE() && num(D.sExit) ? [{ shares: 1, price: num(D.sExit), date: D.sExitDate || D.date || "", hows: [], how: "" }] : [],
+        sExits: (D.sExits || []).filter((x) => exShares(x) || num(x.price) || (x.hows || []).length).map((x) => ({ shares: exShares(x) || null, price: num(x.price), date: x.date || "", hows: x.hows || [], how: (x.hows || []).join(" + ") })),
         shotLinks: Object.fromEntries(["m12", "m6", "m3", "mo", "wk"].filter((k) => D.links[k]).map((k) => [k, D.links[k]])),
-        ...(() => { const x = !LIVE() && num(D.sExit) ? sRes() : null; return x ? { r: x.r != null ? +x.r.toFixed(2) : null, pnl: null, retPct: +x.ret.toFixed(2), outcome: x.ret > 0 ? "win" : x.ret < 0 ? "loss" : "be", closeDate: D.sExitDate || D.date || "" } : { r: null, pnl: null, retPct: null, outcome: "" }; })(),
+        ...(() => { const c = exSum(); if (c && c.xs.length && c.left <= 0) return { r: c.r != null ? +c.r.toFixed(2) : null, pnl: LIVE() ? +c.pnl.toFixed(2) : null, retPct: +c.ret.toFixed(2), outcome: c.pnl > 0 ? "win" : c.pnl < 0 ? "loss" : "be", closeDate: c.xs.map((x) => x.date).filter(Boolean).sort().pop() || "" };
+          return { r: null, pnl: LIVE() && c && c.xs.length ? +c.pnl.toFixed(2) : null, retPct: null, outcome: "" }; })(),
         created: Date.now(), source: "tradingview-extension" }; }
     const weekly = { ...D.w };
     if (D.ms) weekly.ms = D.ms; if (D.trend) weekly.trend = D.trend; if (D.wPat) weekly.pattern = "for";
@@ -212,9 +213,20 @@
   const ctxSel = () => LIVE()
     ? f("Account", `<select data-k="account"><option value="">No account</option>${accounts.filter((a) => (a.market || "fx") === mkt).map((a) => `<option value="${esc(a.name)}" ${a.name === D.account ? "selected" : ""}>${esc(a.name)}${(a.status || (a.archived ? "closed" : "active")) !== "active" ? " (" + esc(a.status || "closed") + ")" : ""}</option>`).join("")}${D.account && !accounts.some((a) => a.name === D.account && (a.market || "fx") === mkt) ? `<option selected value="${esc(D.account)}">${esc(D.account)}</option>` : ""}</select>`)
     : f("Project", `<select data-k="project"><option value="">No project</option>${projects.filter((p) => (p.market || "fx") === mkt).map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`);
-  const sRes = () => { const en = +D.sEntry, sl = +D.sStop, ex = +D.sExit; if (!en || !ex) return null; const risk = en > sl && sl ? en - sl : 0;
-    return { r: risk ? (ex - en) / risk : null, ret: (ex - en) / en * 100 }; };
-  const sResText = () => { const x = sRes(); if (!x) return "—"; const sg = (v) => (v > 0 ? "+" : "") + v.toFixed(2); return (x.r != null ? sg(x.r) + "R · " : "") + sg(x.ret) + "%"; };
+  // invest exits (the journal's exit plan per phase)
+  const EXITS0 = { A: [["6M BOC", 40], ["3M BOC", 30], ["6M −27 FC", 15], ["Weekly TS", 15]], B: [["3M FS", 60], ["6M BOC", 40]] }, EXOTHER0 = ["3M FS", "Weekly TS", "BE", "Stop loss", "Manual"];
+  const exPlan = () => ((P.exits || EXITS0)[D.sPhase] || []);
+  const exOpts = () => [...new Set([...exPlan().map((x) => x[0]), ...(P.exother || EXOTHER0), ...(D.sExits || []).flatMap((x) => x.hows || [])])];
+  // position size: live = shares bought; backtest = a notional 1 (exits are % of it)
+  const exSize = () => LIVE() ? +D.sShares || 0 : 1;
+  const exShares = (x) => LIVE() ? +x.shares || 0 : (+x.pct || 0) / 100;
+  const exSum = () => { const sh = exSize(), en = +D.sEntry, sl = +D.sStop; if (!sh || !en) return null;
+    const xs = (D.sExits || []).filter((x) => exShares(x) > 0 && +x.price > 0), sold = xs.reduce((a, x) => a + exShares(x), 0), pnl = xs.reduce((a, x) => a + exShares(x) * (+x.price - en), 0);
+    const left = Math.abs(sh - sold) < 0.0005 ? 0 : sh - sold, risk = en > sl && sl ? sh * (en - sl) : 0;
+    return { xs, sold, left, pnl, r: risk ? pnl / risk : null, ret: pnl / (sh * en) * 100 }; };
+  const exSumText = () => { const c = exSum(); if (!c || !c.xs.length) return (D.sExits || []).length ? (LIVE() ? "Fill in shares bought and entry to see the result." : "Fill in the entry to see the result.") : "No exits yet: the trade stays open.";
+    const sg = (v) => (v > 0 ? "+" : "") + v.toFixed(2), done = c.left <= 0;
+    return (LIVE() ? `Sold ${+c.sold.toFixed(4)} / ${exSize()}` : `Closed ${+(c.sold * 100).toFixed(1)}%`) + (done ? "" : ` · still open ${LIVE() ? +c.left.toFixed(4) : +(c.left * 100).toFixed(1) + "%"}`) + (c.r != null ? ` · ${sg(c.r)}R` : "") + ` · ${sg(c.ret)}%`; };
   const missing = () => INV() ? [!D.pair && "ticker", !D.date && "date"].filter(Boolean) : [!D.pair && "pair", !D.date && "date", !D.dir && "direction"].filter(Boolean);
   async function save() {
     const miss = missing(); if (miss.length) { msg = "Still needed: " + miss.join(", ") + (view === "steps" && !D.date ? ` (on the ${steps().find((x) => x[0] === dateStep())[1]} step)` : "") + "."; return render(); }
@@ -273,12 +285,18 @@
         ${D.sPhase ? `<div class="segs">${D.sPhase === "A" ? chk("s1room", "Room") : ""}${chk("s1cc", "Bullish CC")}</div>` : ""}`,
       wk: () => `${f("Market structure", ms("swMs"))}${f("Pattern", seg("swPat", [["BM", "BM"], ["IHS", "IHS"]], D.swPat))}`,
       // backtest: no shares bought or currency, just where you'd enter and stop
-      exec: () => `${LIVE() ? f("Currency", seg("sCur", [["USD", "USD"], ["EUR", "EUR"], ["GBP", "GBP"], ["CAD", "CAD"], ["CHF", "CHF"]], D.sCur || "USD")) : ""}
+      exec: () => { const plan = exPlan(), sum = exSum(), sg = (v) => (v > 0 ? "+" : "") + v.toFixed(2);
+        return `${f(`Date <button type="button" class="lnk inl" data-act="readdate" title="From the Long/Short position, or the replay date">⟳ from chart</button>`, `<input type="date" data-k="date" value="${esc(D.date)}">`)}
+        ${LIVE() ? f("Currency", seg("sCur", [["USD", "USD"], ["EUR", "EUR"], ["GBP", "GBP"], ["CAD", "CAD"], ["CHF", "CHF"]], D.sCur || "USD")) : ""}
         <div class="${LIVE() ? "row3" : "row2"}">${LIVE() ? f("Shares bought", `<input type="number" step="any" min="0" data-k="sShares" value="${esc(D.sShares)}">`) : ""}${f("Entry", `<input type="number" step="any" data-k="sEntry" value="${esc(D.sEntry)}">`)}${f("Initial stop", `<input type="number" step="any" data-k="sStop" value="${esc(D.sStop)}">`)}</div>
-        ${LIVE() ? "" : `<div class="row2">${f("Exit price <em>optional</em>", `<input type="number" step="any" data-k="sExit" value="${esc(D.sExit)}">`)}${f("Exit date", `<input type="date" data-k="sExitDate" value="${esc(D.sExitDate)}">`)}</div>
-          <p class="hint">Result <b data-sres>${esc(sResText())}</b></p>`}
-        ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}
-        <p class="hint">${LIVE() ? "Exits and the rate are added in the journal when you sell." : "Leave the exit empty if the trade is still open, or for partial exits (add those in the journal)."}</p>` };
+        <b class="ttl">Exits</b>
+        ${plan.length ? `<p class="hint">Plan: ${esc(plan.map(([n, p]) => p + "% " + n).join(" · "))}</p>` : ""}
+        ${(D.sExits || []).map((x, i) => `<div class="exr">
+          <div class="row3">${f(LIVE() ? "Shares" : "% of position", `<input type="number" step="any" min="0" data-exi="${i}" data-exk="${LIVE() ? "shares" : "pct"}" value="${esc(LIVE() ? x.shares ?? "" : x.pct ?? "")}">`)}${f("Price", `<input type="number" step="any" min="0" data-exi="${i}" data-exk="price" value="${esc(x.price ?? "")}">`)}${f("Date", `<input type="date" data-exi="${i}" data-exk="date" value="${esc(x.date || "")}">`)}</div>
+          <div class="exh"><div class="segs">${exOpts().map((o) => `<button type="button" class="sg${(x.hows || []).includes(o) ? " on" : ""}" data-exhow="${esc(o)}" data-exi="${i}">${esc(o)}</button>`).join("")}</div><button type="button" class="lnk" data-exdel="${i}" title="Remove this exit">×</button></div></div>`).join("")}
+        <div><button type="button" class="btn ghost sm" data-act="exadd">+ Add exit</button></div>
+        <p class="hint" data-exsum>${esc(exSumText())}</p>
+        ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}`; } };
     const B = INV() ? { ...IB, setup: IB.setup } : { setup: () => `      ${ctxSel()}
       <div class="row2">${f(`Pair <button type="button" class="lnk inl" data-act="read" title="Read pair and replay date from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" list="tjpairs" autocomplete="off"><datalist id="tjpairs">${String((pj && pj.pairs) || "").split(/[\s,]+/).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`)}
         ${view === "steps" ? f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir)) : f("Date", `<input type="date" data-k="date" value="${esc(D.date)}">`)}</div>
@@ -340,7 +358,7 @@
       const L = steps(), s = curStep(), last = step === L.length - 1, link = s[2] && D.links[s[0]];
       panel.innerHTML = `${HEAD}
       <div class="stp">${L.map(([k, l], i) => `<button type="button" class="st${i === step ? " on" : ""}${i < step ? " done" : ""}" data-go="${i}">${esc(l)}</button>`).join("")}</div>
-      <div class="body">${step ? posLine() : ""}${s[2] ? `<p class="hint">Chart is on ${esc(s[1])}. Position it, fill this in, then Continue grabs the chart.</p>` : ""}${B[s[0]]()}${s[0] === dateStep() ? f(`Date <button type="button" class="lnk inl" data-act="readdate" title="From the Long/Short position, or the replay date">⟳ from chart</button>`, `<input type="date" data-k="date" value="${esc(D.date)}">`) : ""}
+      <div class="body">${step ? posLine() : ""}${s[2] ? `<p class="hint">Chart is on ${esc(s[1])}. Position it, fill this in, then Continue grabs the chart.</p>` : ""}${B[s[0]]()}${s[0] === dateStep() && !INV() ? f(`Date <button type="button" class="lnk inl" data-act="readdate" title="From the Long/Short position, or the replay date">⟳ from chart</button>`, `<input type="date" data-k="date" value="${esc(D.date)}">`) : ""}
         ${link ? `<div class="shot cur"><img src="${tvImg(link.match(/x\/([^/]+)/)[1])}" alt="${esc(s[1])} chart"><button type="button" class="rm" data-rm="${s[0]}" title="Remove">×</button></div>` : ""}</div>
       <div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb"><button type="button" class="lnk" data-act="stoplog" title="Stop for now. The trade is kept, so you can continue later.">Stop</button>${step ? `<button type="button" class="btn ghost" data-act="back" ${busy ? "disabled" : ""}>Back</button>` : ""}<span class="sp"></span>
         ${s.failed || (s[2] && msg && /didn't come/.test(msg)) ? `<button type="button" class="lnk" data-act="skip">Continue without chart</button>` : ""}
@@ -385,6 +403,11 @@
     if (d.settab) { setTab = d.settab; return render(); }
     if (d.look) { if (look.match && jLook) look = { ...look, theme: jLook.theme, accent: jLook.accent }; look.match = false; look[d.look] = d.v; saveSet({ look }); applyLook(); return render(); }
     if (d.act === "settings") { settings = !settings; msg = ""; return render(); }
+    if (d.act === "exadd") { const used = (D.sExits || []).flatMap((x) => x.hows || []), nx = exPlan().find(([n]) => !used.includes(n)), soldPct = (D.sExits || []).reduce((a, x) => a + exShares(x), 0) / (exSize() || 1) * 100;
+      const pct = nx ? nx[1] : Math.max(0, Math.round((100 - soldPct) * 100) / 100);
+      D.sExits = [...(D.sExits || []), { pct: LIVE() ? null : pct || null, shares: LIVE() && D.sShares ? Math.floor(+D.sShares * pct / 100) || null : null, price: null, date: new Date().toISOString().slice(0, 10), hows: nx ? [nx[0]] : [] }]; keep(); return render(); }
+    if (d.exdel != null) { D.sExits = (D.sExits || []).filter((_, i) => i !== +d.exdel); keep(); return render(); }
+    if (d.exhow != null) { const x = (D.sExits || [])[+d.exi]; if (x) { const h = x.hows || []; x.hows = h.includes(d.exhow) ? h.filter((v) => v !== d.exhow) : [...h, d.exhow]; keep(); } return render(); }
     if (d.act === "next") return next();
     if (d.act === "back") return goStep(step - 1);
     if (d.act === "skip") { msg = ""; return goStep(step + 1); }
@@ -420,7 +443,8 @@
     if (e.target.tagName === "TEXTAREA" || e.target.type === "number" || e.target.type === "date" || k === "pair") { if (k === "pair") { D.pair = pairOf(D.pair); e.target.value = D.pair; } keep(); return; }
     if (k === "wPat") D.wPatSub = ""; if (k === "concept") D.sub = ""; if (k === "entry4h" && !hasStruct(D.entry4h)) { D.struct = ""; D.room = false; } if (k === "pair") D.pair = pairOf(D.pair);
     if (k === "project") store({ lastProject: D.project }); if (k === "account") store({ lastAccount: D.account }); keep(); render(); });
-  root.addEventListener("input", (e) => { const k = e.target.dataset && e.target.dataset.k; if (k && (e.target.tagName === "TEXTAREA" || e.target.type === "number")) { D[k] = e.target.value; keep(); if (k === "slPips" || k === "tpPips") { const r = panel.querySelector("[data-rr]"); if (r) r.textContent = rrText(); } if (k === "sEntry" || k === "sStop" || k === "sExit") { const r = panel.querySelector("[data-sres]"); if (r) r.textContent = sResText(); } } });
+  root.addEventListener("input", (e) => { if (e.target.dataset && e.target.dataset.exk) { const x = (D.sExits || [])[+e.target.dataset.exi]; if (x) { const v = e.target.value; x[e.target.dataset.exk] = e.target.type === "number" ? (v === "" ? null : +v) : v; keep(); const r = panel.querySelector("[data-exsum]"); if (r) r.textContent = exSumText(); } return; }
+    const k = e.target.dataset && e.target.dataset.k; if (k && (e.target.tagName === "TEXTAREA" || e.target.type === "number")) { D[k] = e.target.value; keep(); if (k === "slPips" || k === "tpPips") { const r = panel.querySelector("[data-rr]"); if (r) r.textContent = rrText(); } if (k === "sEntry" || k === "sStop" || k === "sShares") { const r = panel.querySelector("[data-exsum]"); if (r) r.textContent = exSumText(); } } });
   // reorder trigger styles by dragging the grip
   let dragI = null;
   root.addEventListener("dragstart", (e) => { const g = e.target.closest && e.target.closest("[data-grip]"); if (!g) return; dragI = +g.dataset.grip; e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", String(dragI)); e.dataTransfer.setDragImage(g.closest(".tr"), 10, 10); } catch {} g.closest(".tr").classList.add("drag"); });
@@ -494,6 +518,7 @@
   .lnk.ext{justify-self:start;color:var(--acc);text-decoration:none;font-weight:600;font-size:12.5px}
   .ic{width:13px;height:13px;vertical-align:-2px;margin-right:5px;color:var(--acc)}.btn .ic{flex:none}.mkrow{display:flex}.mkt{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.mkt button{border:0;background:none;color:var(--mut);font:600 13px inherit;font-family:inherit;padding:5px 12px;border-radius:6px;cursor:pointer}.mkt button.on{background:var(--ink);color:var(--in)}.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-top:-2px}.tab{display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;color:var(--mut);font:600 14px inherit;font-family:inherit;padding:8px 12px;cursor:pointer}.tab i{width:9px;height:9px;border-radius:50%}.tab.live i{background:var(--live)}.tab.backtest i{background:var(--acc)}.tab.on{color:var(--ink)}.tab.live.on{border-bottom-color:var(--live)}.tab.backtest.on{border-bottom-color:var(--acc)}
   .tgw{display:grid;gap:6px;margin-top:4px;padding:8px 9px;border:1px solid var(--line);border-radius:9px;background:color-mix(in srgb,var(--in) 55%,transparent)}.tgl{font-size:11px;font-weight:600;color:var(--mut)}.tgs{display:flex;flex-wrap:wrap;gap:6px}.tg{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:none;color:var(--mut);border-radius:999px;padding:4px 10px 4px 7px;font-size:12px;cursor:pointer}.tg i{width:10px;height:10px;border-radius:3px;opacity:.45}.tg.on{color:var(--ink);border-color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}.tg.on i{opacity:1}
+   .exr{display:grid;gap:6px;padding:8px;border:1px solid var(--line);border-radius:9px}.exr .row3{grid-template-columns:minmax(0,.8fr) minmax(0,.9fr) minmax(0,1.35fr)}.exr input{min-width:0;width:100%}.exr input[type=date]{padding-left:6px;padding-right:2px;font-size:12px}.exh{display:flex;gap:6px;align-items:flex-start}.exh .segs{flex:1;flex-wrap:wrap}.exh .sg{font-size:11.5px;padding:4px 8px}.exh .lnk{font-size:16px;text-decoration:none}
   .ttl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}.sw{display:flex;gap:8px}.swb{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:inset 0 0 0 2px var(--bg)}.swb.on{border-color:var(--ink)}.chk{display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-top:4px}.chk input{width:auto;margin-top:2px;accent-color:var(--acc)}.chk small{display:block;color:var(--mut);font-size:11.5px;margin-top:2px}
   .btn.big{padding:11px 14px;font-size:14px}.idle{gap:12px}
   .msg{margin:0;font-size:12px;color:var(--ink);line-height:1.4}

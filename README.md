@@ -8,7 +8,7 @@ trades (from bar replay) and live trades straight into your [Trade Journal](http
 - 📷 per timeframe (Weekly, Daily, 4H, 1H/2H): takes a TradingView snapshot
   (the same as Alt+S) and stores the link with the trade. Pressing Alt+S yourself works too.
 - Reads the pair and replay date from the chart (“⟳ from chart”).
-- **Forex / Invest** switch on the start screen. Invest walks through 12M, 6M, 3M, Monthly and Weekly (same fields as the journal, by phase), then execution: currency, shares, entry and initial stop.
+- **Forex / Invest** switch on the start screen. Invest walks through 12M, 6M, 3M, Monthly and Weekly (same fields as the journal, by phase), then execution: date, entry, initial stop (and currency and shares for live trades) and any number of exits with price, date and exit strategy. In backtest the exits are % of the position and the result shows as R and %.
 - **Backtest / Live** switch on the start screen: backtest trades go into the project you pick, live trades into the account you pick, in your own journal (same login). Missed trades can be logged too.
 
 It is separate from the journal: it only writes trades in the journal's normal format.
