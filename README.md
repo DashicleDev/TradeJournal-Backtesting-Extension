@@ -1,14 +1,14 @@
 # Trade Journal for TradingView
 
 A browser extension that adds a small panel to TradingView, so you can log backtest
-trades from bar replay straight into your [Trade Journal](https://dashicledev.github.io/TradeJournal/).
+trades (from bar replay) and live trades straight into your [Trade Journal](https://dashicledev.github.io/TradeJournal/).
 
 - Same fields as the journal's trade form: phase, inner/outer, trend, MS, ranging,
   pattern, pros/cons, daily, 4H, result, notes.
 - 📷 per timeframe (Weekly, Daily, 4H, 1H/2H): takes a TradingView snapshot
   (the same as Alt+S) and stores the link with the trade. Pressing Alt+S yourself works too.
 - Reads the pair and replay date from the chart (“⟳ from chart”).
-- Saves into the backtest project you pick, in your own journal (same login).
+- **Backtest / Live** switch on the start screen: backtest trades go into the project you pick, live trades into the account you pick, in your own journal (same login). Missed trades can be logged too.
 
 It is separate from the journal: it only writes trades in the journal's normal format.
 The field lists come from the journal's `plan.json`, so new options show up here automatically.

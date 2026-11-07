@@ -16,7 +16,7 @@
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
   let dd = null, mini = false, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
   const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "", planEntry: "", slPips: "", tpPips: "" });
-  let savedId = "", tfPrev = "", skipBack = "", autoFit = true, settings = false, setTab = "chart", trig = [], fwd = null, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
+  let tmode = "backtest", accounts = [], savedId = "", tfPrev = "", skipBack = "", autoFit = true, settings = false, setTab = "chart", trig = [], fwd = null, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
 
   /* ---------- look (same themes and accents as the journal) ---------- */
   const THEMES = {
@@ -43,7 +43,7 @@
 
   /* ---------- storage ---------- */
   const store = (o) => chrome.storage.local.set(o);
-  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step", "logging", "autoFit", "look", "jLook", "trig"]); mini = !!o.mini; trig = o.trig || []; if (o.look) look = { ...look, ...o.look }; if (o.jLook) jLook = o.jLook; autoFit = o.autoFit !== false; logging = !!o.logging; view = "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
+  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step", "logging", "autoFit", "look", "jLook", "trig", "tmode", "lastAccount"]); mini = !!o.mini; tmode = o.tmode === "live" ? "live" : "backtest"; trig = o.trig || []; if (o.look) look = { ...look, ...o.look }; if (o.jLook) jLook = o.jLook; autoFit = o.autoFit !== false; logging = !!o.logging; view = "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.account && o.lastAccount) D.account = o.lastAccount; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
   let saveT; const keep = () => { clearTimeout(saveT); saveT = setTimeout(() => store({ draft: D }), 250); };
 
   /* ---------- shell ---------- */
@@ -158,7 +158,7 @@
   async function goStep(i) {
     step = Math.max(0, Math.min(steps().length - 1, i)); store({ step }); dd = null;
     const s = curStep(); if (s[2]) { msg = ""; render(); const ok = await setTf(s[2]); msg = ok ? "" : `Switch the chart to ${s[1]} yourself.`;
-      if (s[0] === dateStep() && !D.date) { await fromPos(); if (!D.date) { const dt = await replayDate(); if (dt) { D.date = dt; keep(); } } } }
+      if (s[0] === dateStep() && !D.date) { await fromPos(); if (!D.date) { const dt = await replayDate(); if (dt) { D.date = dt; keep(); } else if (LIVE()) { D.date = new Date().toISOString().slice(0, 10); keep(); } } } }
     if (s[0] === "result" && !D.closeDate) await fromPos();
     render();
   }
@@ -183,7 +183,7 @@
     if (D.ms) weekly.ms = D.ms; if (D.trend) weekly.trend = D.trend; if (D.wPat) weekly.pattern = "for";
     const st = hasStruct(D.entry4h) ? D.struct : "", bos = st === "bos", som = st === "som", num = (v) => v === "" || v == null || isNaN(+v) ? null : +v;
     let r = num(D.r); if (r != null && D.outcome === "loss" && r > 0) r = -r; if (r != null && D.outcome === "win" && r < 0) r = -r; if (D.outcome === "be" && r == null) r = 0;
-    return { id: uid(), mode: "backtest", market: "fx", project: D.project || null, status: "taken", account: "", btDate: new Date().toISOString().slice(0, 10),
+    return { id: uid(), mode: LIVE() ? "live" : "backtest", market: "fx", project: LIVE() ? null : D.project || null, status: D.missed ? "missed" : "taken", account: LIVE() ? D.account || "" : "", btDate: LIVE() ? null : new Date().toISOString().slice(0, 10),
       date: D.date, closeDate: D.closeDate, concept: D.concept, fase: D.fase ? +D.fase : null, wStruct: D.wStruct, wPat: D.wPat, wPatSub: D.wPat ? D.wPatSub : "", wRange: !!D.wRange,
       scaleIn: !!D.scaleIn, dMs: D.dMs, hMs: D.hMs, weekly, sub: D.concept === "Weekly - 4H" ? "" : D.sub, dPros: D.dPros.slice(), dailyFib: D.dPros.includes("fc") ? "ja" : "nee",
       outcome: D.outcome, r, maxR: num(D.maxR), notes: D.notes.trim(), evaluation: D.evaluation, onPlan: D.evaluation ? D.evaluation === "plan" : null, exitReason: D.exit,
@@ -191,13 +191,17 @@
       ecTf: D.entry4h === "Engulfing Candle" ? D.ecTf : "", shots: {}, shotLinks: { ...D.links }, pair: pairOf(D.pair), dir: D.dir, created: Date.now(), source: "tradingview-extension" };
   }
   const rrText = () => { const sl = +D.slPips, tp = +D.tpPips; return sl > 0 && tp > 0 ? "1 : " + (Math.round(tp / sl * 100) / 100) : "—"; };
+  const LIVE = () => tmode === "live";
+  const ctxSel = () => LIVE()
+    ? f("Account", `<select data-k="account"><option value="">No account</option>${accounts.map((a) => `<option value="${esc(a.name)}" ${a.name === D.account ? "selected" : ""}>${esc(a.name)}${(a.status || (a.archived ? "closed" : "active")) !== "active" ? " (" + esc(a.status || "closed") + ")" : ""}</option>`).join("")}${D.account && !accounts.some((a) => a.name === D.account) ? `<option selected value="${esc(D.account)}">${esc(D.account)}</option>` : ""}</select>`)
+    : f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`);
   const missing = () => [!D.pair && "pair", !D.date && "date", !D.dir && "direction"].filter(Boolean);
   async function save() {
     const miss = missing(); if (miss.length) { msg = "Still needed: " + miss.join(", ") + (view === "steps" && !D.date ? ` (on the ${steps().find((x) => x[0] === dateStep())[1]} step)` : "") + "."; return render(); }
     busy = true; render();
-    try { const doc = toDoc(); await call("save", { doc }); savedId = doc.id; const pj = D.project, pr = D.pair;
-      D = { ...blank(), project: pj, pair: pr }; store({ draft: D, lastProject: pj });
-      msg = `Saved ${doc.pair} ${doc.dir} to ${(projects.find((p) => p.id === pj) || {}).name || "Backtest"}.`; if (view === "steps") { step = 0; logging = false; store({ step, logging }); } }
+    try { const doc = toDoc(); await call("save", { doc }); savedId = doc.id; const pj = D.project, ac = D.account, pr = D.pair;
+      D = { ...blank(), project: pj, account: ac, pair: pr }; store({ draft: D, lastProject: pj, lastAccount: ac });
+      msg = `Saved ${doc.pair} ${doc.dir}${doc.status === "missed" ? " (missed)" : ""} to ${LIVE() ? ac || "Live" : (projects.find((p) => p.id === pj) || {}).name || "Backtest"}.`; if (view === "steps") { step = 0; logging = false; store({ step, logging }); } }
     catch (e) { msg = "Couldn't save: " + e.message; }
     busy = false; render();
   }
@@ -230,10 +234,11 @@
     const csum = SLOTS.filter(([k]) => D.links[k]).map(([, l]) => l).join(" · ") || "none yet";
     const rsum = [D.outcome && ({ win: "Win", be: "BE", loss: "Loss" })[D.outcome], D.r !== "" && D.r + "R", D.evaluation && (D.evaluation === "plan" ? "To plan" : "Not to plan")].filter(Boolean).join(" · ");
     const pj = projects.find((p) => p.id === D.project);
-    const B = { setup: () => `      ${f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`)}
+    const B = { setup: () => `      ${ctxSel()}
       <div class="row2">${f(`Pair <button type="button" class="lnk inl" data-act="read" title="Read pair and replay date from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" list="tjpairs" autocomplete="off"><datalist id="tjpairs">${String((pj && pj.pairs) || "").split(/[\s,]+/).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`)}
         ${view === "steps" ? f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir)) : f("Date", `<input type="date" data-k="date" value="${esc(D.date)}">`)}</div>
-      ${view === "steps" ? "" : f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir))}${posSel()}`, weekly: () => `
+      ${view === "steps" ? "" : f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir))}${posSel()}
+      ${f("Missed trade", `<div class="segs"><button type="button" class="sg${D.missed ? " on" : ""}" data-tog="missed">Missed</button></div>`)}`, weekly: () => `
         <div class="row2">${f("Weekly phase", seg("fase", [["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]], String(D.fase)))}${f("Inner / outer", seg("wStruct", [["inner", "Inner"], ["outer", "Outer"]], D.wStruct))}</div>
         <div class="row2">${f("Market trend", seg("trend", MS, D.trend))}${f("Market structure", seg("ms", MS, D.ms))}</div>
         <div class="row2">${f("Ranging <em>between two weekly levels</em>", `<div class="segs"><button type="button" class="sg${D.wRange ? " on" : ""}" data-tog="wRange">↔ Ranging</button></div>`)}
@@ -257,7 +262,7 @@
         ${f("According to plan?", seg("evaluation", [["plan", "Yes"], ["off", "No"]], D.evaluation))}
         ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}`,
       ltf: () => `<p class="hint">Find the reversal on the ${curStep()[1]}, then continue to grab the chart.</p>` };
-    const HEAD = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="settings" title="Settings">⚙</button><button type="button" class="x x2" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x x2" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`;
+    const HEAD = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">${LIVE() ? "Live" : "Backtest"}</span><button type="button" class="x" data-act="settings" title="Settings">⚙</button><button type="button" class="x x2" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x x2" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`;
     if (settings) {
       const L = look.match && jLook ? jLook : look, ST = [["chart", "Chart"], ["replay", "Replay"], ["look", "Look"], ["account", "Account"]];
       const tab = ST.some(([k]) => k === setTab) ? setTab : "chart";
@@ -276,13 +281,14 @@
     } else if (view === "steps" && !logging) {
       const draft = D.dir || D.fase || D.concept || D.entry4h || Object.keys(D.links).length;
       panel.innerHTML = `${HEAD}<div class="body idle">
-        ${f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`)}
+        <div class="segs mode">${[["backtest", "Backtest"], ["live", "Live"]].map(([k, l]) => `<button type="button" class="sg${tmode === k ? " on" : ""}" data-tmode="${k}">${l}</button>`).join("")}</div>
+        ${ctxSel()}
         ${draft ? `<p class="hint">Unfinished trade: ${esc([D.pair, D.dir && (D.dir === "long" ? "↑ Long" : "↓ Short"), steps()[step] && "at " + steps()[step][1]].filter(Boolean).join(" · "))}</p>
           <div class="fb"><button type="button" class="btn pri" data-act="log">▶ Continue trade</button><button type="button" class="btn ghost" data-act="discard">Discard it</button></div>`
         : `<div class="newt"><button type="button" class="fab" data-act="log" aria-label="New trade" title="New trade">+</button><span><b>New trade</b><small>Weekly, Daily and 4H, grabbing each chart as you go.</small></span></div>`}
-        <div class="skip"><b class="ttl">Skip to the next drawing hit (4H)</b>
+        ${LIVE() ? "" : `<div class="skip"><b class="ttl">Skip to the next drawing hit (4H)</b>
           ${fwd ? fwdBtn() : `<div class="fb"><button type="button" class="btn ghost" data-act="skip1d" title="Stops at a hit, or at the latest when the daily candle closes">${FF}Daily CC</button><button type="button" class="btn ghost" data-act="skip1w" title="Stops at a hit, or at the latest when the weekly candle closes">${FF}Weekly CC</button></div>`}
-          ${trig.length ? `<div class="tgw"><span class="tgl">Stop at</span><div class="tgs">${trig.map((t, k) => `<button type="button" class="tg${t.on === false ? "" : " on"}" data-tgtrig="${k}" title="${t.on === false ? "Off: skips ignore this style" : "On: skips stop at this style"}"><i style="background:${esc(t.color || "transparent")}"></i>${esc(t.label || (t.name === "rectangle" ? "Rectangle" : "Line"))}</button>`).join("")}</div></div>` : `<p class="hint">Stops at any horizontal line or rectangle. Add your templates in ⚙ → Replay.</p>`}</div>
+          ${trig.length ? `<div class="tgw"><span class="tgl">Stop at</span><div class="tgs">${trig.map((t, k) => `<button type="button" class="tg${t.on === false ? "" : " on"}" data-tgtrig="${k}" title="${t.on === false ? "Off: skips ignore this style" : "On: skips stop at this style"}"><i style="background:${esc(t.color || "transparent")}"></i>${esc(t.label || (t.name === "rectangle" ? "Rectangle" : "Line"))}</button>`).join("")}</div></div>` : `<p class="hint">Stops at any horizontal line or rectangle. Add your templates in ⚙ → Replay.</p>`}</div>`}
       </div>${msg || savedId ? `<div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}${savedId ? `<a class="lnk ext" href="${JOURNAL}#trade=${encodeURIComponent(savedId)}" target="_blank" rel="noopener">Open in journal ↗</a>` : ""}</div>` : ""}`;
     } else if (view === "steps") {
       const L = steps(), s = curStep(), last = step === L.length - 1, link = s[2] && D.links[s[0]];
@@ -317,7 +323,7 @@
     if (d.act === "close") return toggle(false);
     if (d.act === "log") { const fresh = !(D.dir || D.fase || D.concept || D.entry4h || Object.keys(D.links).length); savedId = ""; logging = true; store({ logging }); msg = ""; return startSteps(fresh); }
     if (d.act === "stoplog") { logging = false; store({ logging }); msg = ""; return render(); }
-    if (d.act === "discard") { const pj = D.project, pr = D.pair; D = { ...blank(), project: pj, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
+    if (d.act === "discard") { const pj = D.project, ac = D.account, pr = D.pair; D = { ...blank(), project: pj, account: ac, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
     if (d.act === "posshow") { showPos(curPos()); return; }
     if (d.act === "posrefresh") { const p = await fromPos(["dir", "date", "closeDate", "planEntry", "slPips", "tpPips"]); msg = p ? "" : posWhy; return render(); }
     if (d.act === "fwd") { skipBack = ""; fwd = { n: 0 }; msg = ""; render(); window.postMessage({ __tj: "fwd", specs: onSigs(), max: 300 }, location.origin); return; }
@@ -326,6 +332,7 @@
       window.postMessage({ __tj: "fwd", specs: onSigs(), max: 300, until: days === 1 ? "D" : "W", res: "240" }, location.origin); return; }
     if (d.act === "fwdstop") { window.postMessage({ __tj: "fwdstop" }, location.origin); return; }
     if (d.act === "trigadd") { window.postMessage({ __tj: "sig" }, location.origin); return; }
+    if (d.tmode) { tmode = d.tmode; store({ tmode }); msg = ""; return render(); }
     if (d.tgtrig != null) { const k = +d.tgtrig; if (trig[k]) { trig[k] = { ...trig[k], on: trig[k].on === false }; saveSet({ trig }); } return render(); }
     if (d.rmtrig != null) { trig = trig.filter((_, i) => i !== +d.rmtrig); saveSet({ trig }); return render(); }
     if (d.settab) { setTab = d.settab; return render(); }
@@ -365,7 +372,7 @@
     // typing fields: no re-render, so a click that caused the blur (e.g. Save) isn't lost
     if (e.target.tagName === "TEXTAREA" || e.target.type === "number" || e.target.type === "date" || k === "pair") { if (k === "pair") { D.pair = pairOf(D.pair); e.target.value = D.pair; } keep(); return; }
     if (k === "wPat") D.wPatSub = ""; if (k === "concept") D.sub = ""; if (k === "entry4h" && !hasStruct(D.entry4h)) { D.struct = ""; D.room = false; } if (k === "pair") D.pair = pairOf(D.pair);
-    if (k === "project") store({ lastProject: D.project }); keep(); render(); });
+    if (k === "project") store({ lastProject: D.project }); if (k === "account") store({ lastAccount: D.account }); keep(); render(); });
   root.addEventListener("input", (e) => { const k = e.target.dataset && e.target.dataset.k; if (k && (e.target.tagName === "TEXTAREA" || e.target.type === "number")) { D[k] = e.target.value; keep(); if (k === "slPips" || k === "tpPips") { const r = panel.querySelector("[data-rr]"); if (r) r.textContent = rrText(); } } });
   // reorder trigger styles by dragging the grip
   let dragI = null;
@@ -384,6 +391,7 @@
   async function boot() {
     try { const p = await call("plan"); if (p && p.plan && p.wcrit) P = p; } catch {}
     try { projects = await call("projects"); } catch (e) { msg = "Couldn't load projects: " + e.message; }
+    try { accounts = await call("accounts"); } catch {}
     if (D.project && !projects.some((p) => p.id === D.project)) D.project = "";
     loadJLook(); loadSet();
   }
@@ -437,7 +445,8 @@
   .fwd{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:6px 9px;border:1px solid var(--acc);border-radius:7px;font-size:12.5px}.fwdgo{justify-self:start}.trl{display:grid;gap:6px}.tr{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:5px 8px;border:1px solid var(--line);border-radius:7px}.tr i{width:14px;height:14px;border-radius:4px;border:1px solid var(--line)}.tr span{flex:1}.tr .grip{flex:none;cursor:grab;color:var(--mut);font-size:13px;letter-spacing:-3px;padding:0 4px 0 0;user-select:none}.tr.drag{opacity:.45}.tr.over-a{box-shadow:inset 0 2px 0 var(--acc)}.tr.over-b{box-shadow:inset 0 -2px 0 var(--acc)}.tr .trn{flex:1;min-width:0;padding:3px 6px;font-size:12.5px;background:transparent;border-color:transparent}.tr .trn:hover,.tr .trn:focus{border-color:var(--line);background:var(--in)}.tr em{font-style:normal;color:var(--mut);font-size:11px}.tr .lnk{font-size:16px;text-decoration:none}
   .newt{display:flex;align-items:center;gap:12px}.newt span{display:grid;gap:2px;font-size:13px}.newt small{color:var(--mut);font-size:12px}.fab{width:46px;height:46px;flex:none;border-radius:50%;border:0;background:var(--acc);color:#fff;font-size:30px;line-height:1;font-weight:400;padding:0 0 3px;cursor:pointer;box-shadow:0 6px 18px color-mix(in srgb,var(--acc) 40%,transparent)}.fab:hover{filter:brightness(1.08)}.skip{display:grid;gap:7px;border-top:1px solid var(--line);padding-top:10px}
   .lnk.ext{justify-self:start;color:var(--acc);text-decoration:none;font-weight:600;font-size:12.5px}
-  .ic{width:13px;height:13px;vertical-align:-2px;margin-right:5px;color:var(--acc)}.btn .ic{flex:none}.tgw{display:grid;gap:6px;margin-top:4px;padding:8px 9px;border:1px solid var(--line);border-radius:9px;background:color-mix(in srgb,var(--in) 55%,transparent)}.tgl{font-size:11px;font-weight:600;color:var(--mut)}.tgs{display:flex;flex-wrap:wrap;gap:6px}.tg{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:none;color:var(--mut);border-radius:999px;padding:4px 10px 4px 7px;font-size:12px;cursor:pointer}.tg i{width:10px;height:10px;border-radius:3px;opacity:.45}.tg.on{color:var(--ink);border-color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}.tg.on i{opacity:1}
+  .ic{width:13px;height:13px;vertical-align:-2px;margin-right:5px;color:var(--acc)}.btn .ic{flex:none}.segs.mode{display:grid;grid-template-columns:1fr 1fr}.segs.mode .sg{justify-content:center}
+  .tgw{display:grid;gap:6px;margin-top:4px;padding:8px 9px;border:1px solid var(--line);border-radius:9px;background:color-mix(in srgb,var(--in) 55%,transparent)}.tgl{font-size:11px;font-weight:600;color:var(--mut)}.tgs{display:flex;flex-wrap:wrap;gap:6px}.tg{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:none;color:var(--mut);border-radius:999px;padding:4px 10px 4px 7px;font-size:12px;cursor:pointer}.tg i{width:10px;height:10px;border-radius:3px;opacity:.45}.tg.on{color:var(--ink);border-color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}.tg.on i{opacity:1}
   .ttl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}.sw{display:flex;gap:8px}.swb{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:inset 0 0 0 2px var(--bg)}.swb.on{border-color:var(--ink)}.chk{display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-top:4px}.chk input{width:auto;margin-top:2px;accent-color:var(--acc)}.chk small{display:block;color:var(--mut);font-size:11.5px;margin-top:2px}
   .btn.big{padding:11px 14px;font-size:14px}.idle{gap:12px}
   .msg{margin:0;font-size:12px;color:var(--ink);line-height:1.4}
