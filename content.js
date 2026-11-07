@@ -133,11 +133,11 @@
   /* ---------- forward to drawing ---------- */
   addEventListener("message", (e) => {
     if (e.source !== window || !e.data) return;
-    if (e.data.__tj === "fwdst") { if (e.data.done) { fwd = null; msg = e.data.why || ""; const tl = e.data.hit && e.data.sig && (trig.find((x) => x.sig === e.data.sig) || {}).label; if (tl) msg = msg.replace(/the (rectangle|line)/, tl); const back = skipBack; skipBack = ""; if (back && !e.data.hit) setTf(back); } else fwd = { n: e.data.n }; render(); }
+    if (e.data.__tj === "fwdst") { if (e.data.done) { fwd = null; msg = e.data.why || ""; const tl = e.data.hit && e.data.ti != null && e.data.ti >= 0 && (trig[e.data.ti] || {}).label; if (tl) msg = msg.replace(/the (rectangle|line)/, tl); const back = skipBack; skipBack = ""; if (back && !e.data.hit) setTf(back); } else fwd = { n: e.data.n }; render(); }
     if (e.data.__tj === "sigok") { if (e.data.err) msg = e.data.err; else if (trig.some((t) => t.sig === e.data.sig)) msg = "That style is already in the list.";
-      else { trig = [...trig, { sig: e.data.sig, name: e.data.name, color: e.data.color, label: e.data.text || "" }]; saveSet({ trig }); msg = ""; } render(); }
+      else { trig = [...trig, { sig: e.data.sig, name: e.data.name, color: e.data.color, label: e.data.text || "", text: e.data.text || "" }]; saveSet({ trig }); msg = ""; } render(); }
   });
-  const onSigs = () => trig.filter((t) => t.on !== false).map((t) => t.sig);
+  const onSigs = () => trig.map((t, i) => ({ sig: t.sig, text: t.text != null ? t.text : t.label || "", i, on: t.on !== false })).filter((t) => t.on);
   const fwdBtn = () => fwd ? `<div class="fwd"><span>${FF}Forwarding… ${fwd.n || 0} candle${fwd.n === 1 ? "" : "s"}</span><button type="button" class="btn sm" data-act="fwdstop">■ Stop</button></div>`
     : `<button type="button" class="btn sm fwdgo" data-act="fwd">${FF}Forward to drawing</button>`;
 
@@ -157,8 +157,8 @@
     if (s[0] === "result" && !D.closeDate) await fromPos();
     render();
   }
-  async function startSteps() {
-    await ask(); if (!D.pair && info.symbol) D.pair = pairOf(info.symbol); const p = await fromPos(); keep();
+  async function startSteps(fresh) {
+    await ask(); if (info.symbol && (fresh || !D.pair)) D.pair = pairOf(info.symbol); const p = await fromPos(); keep();
     await goStep(0);
     if (step === 0 && !D.dir) { msg = p ? "" : posWhy; render(); }
   }
@@ -310,17 +310,17 @@
     if (d.act === "hide") { mini = true; store({ mini }); return render(); }
     if (d.act === "expand") { mini = false; store({ mini }); return render(); }
     if (d.act === "close") return toggle(false);
-    if (d.act === "log") { savedId = ""; logging = true; store({ logging }); msg = ""; return startSteps(); }
+    if (d.act === "log") { const fresh = !(D.dir || D.fase || D.concept || D.entry4h || Object.keys(D.links).length); savedId = ""; logging = true; store({ logging }); msg = ""; return startSteps(fresh); }
     if (d.act === "stoplog") { logging = false; store({ logging }); msg = ""; return render(); }
     if (d.act === "discard") { const pj = D.project, pr = D.pair; D = { ...blank(), project: pj, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
     if (d.act === "posshow") { showPos(curPos()); return; }
     if (d.act === "posrefresh") { const p = await fromPos(["dir", "date", "closeDate"]); msg = p ? "" : posWhy; return render(); }
-    if (d.act === "fwd") { skipBack = ""; fwd = { n: 0 }; msg = ""; render(); window.postMessage({ __tj: "fwd", sigs: onSigs(), max: 300 }, location.origin); return; }
+    if (d.act === "fwd") { skipBack = ""; fwd = { n: 0 }; msg = ""; render(); window.postMessage({ __tj: "fwd", specs: onSigs(), max: 300 }, location.origin); return; }
     if ((d.act === "skip1d" || d.act === "skip1w" || d.act === "fwd") && trig.length && !onSigs().length) { msg = "All your styles are off. Turn at least one on."; return render(); }
     if (d.act === "skip1d" || d.act === "skip1w") { const days = d.act === "skip1d" ? 1 : 7; fwd = { n: 0 }; msg = ""; render();
       const ok = await setTf("240"); skipBack = ok === true ? tfPrev : ""; if (!ok) { fwd = null; msg = "Switch the chart to 4H yourself, then try again."; return render(); }
       if (ok !== "same") await new Promise((r) => setTimeout(r, 600));
-      window.postMessage({ __tj: "fwd", sigs: onSigs(), max: 300, until: days === 1 ? "D" : "W" }, location.origin); return; }
+      window.postMessage({ __tj: "fwd", specs: onSigs(), max: 300, until: days === 1 ? "D" : "W" }, location.origin); return; }
     if (d.act === "fwdstop") { window.postMessage({ __tj: "fwdstop" }, location.origin); return; }
     if (d.act === "trigadd") { window.postMessage({ __tj: "sig" }, location.origin); return; }
     if (d.tgtrig != null) { const k = +d.tgtrig; if (trig[k]) { trig[k] = { ...trig[k], on: trig[k].on === false }; saveSet({ trig }); } return render(); }

@@ -116,6 +116,11 @@
       else if (/(color|linewidth|linestyle|transparency)$/i.test(k) && !/text|font|label/i.test(key)) out[key] = v; } };
     walk(props, ""); return s.name + "|" + JSON.stringify(Object.keys(out).sort().map((k) => [k, out[k]]));
   };
+  const rgb = (v) => { const s = String(v).trim().toLowerCase(); let m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/.exec(s); if (m) return [0, 2, 4].map((i) => parseInt(m[1].substr(i, 2), 16)).join(",");
+    m = /^#([0-9a-f]{3})$/.exec(s); if (m) return [...m[1]].map((c) => parseInt(c + c, 16)).join(","); m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(s); return m ? [m[1], m[2], m[3]].map(Number).join(",") : ""; };
+  const looseSig = (sig) => { const i = sig.indexOf("|"); let kv = []; try { kv = JSON.parse(sig.slice(i + 1)); } catch {} return sig.slice(0, i) + "|" + [...new Set(kv.filter(([k]) => /color$/i.test(k)).map(([, v]) => rgb(v)).filter(Boolean))].sort().join(" "); };
+  const textOf = (ch, s) => { try { const pr = ch.getShapeById(s.id).getProperties() || {}; return String(pr.text || (pr.label && pr.label.text) || "").trim(); } catch { return ""; } };
+  const normT = (t) => String(t || "").trim().replace(/\s+/g, " ").toLowerCase();
   const swatch = (sig) => { const m = /"(#[0-9a-fA-F]{6,8}|rgba?\([^"]+\))"/.exec(sig); return m ? m[1] : ""; };
   const levelsOf = (ch, s) => { try { const pts = ch.getShapeById(s.id).getPoints() || []; const ps = pts.map((p) => p.price).filter((x) => typeof x === "number");
     if (!ps.length) return null; return { lo: Math.min(...ps), hi: Math.max(...ps), t0: Math.min(...pts.map((p) => p.time || Infinity)), name: s.name }; } catch { return null; } };
@@ -129,7 +134,7 @@
     if (e.data.__tj === "fwdstop") { fwdStop = true; return; }
     if (e.data.__tj === "sig") { // style of the selected line / rectangle, to use as a trigger
       let r = { err: "Select a horizontal line or rectangle on the chart first." };
-      try { const ch = chartApi(), sel = ch.selection().allSources() || [], s = ch.getAllShapes().find((x) => sel.includes(x.id) && LEVELS.test(x.name)); if (s) { const sig = styleOf(ch, s); let text = ""; try { const pr = ch.getShapeById(s.id).getProperties() || {}; text = String(pr.text || (pr.label && pr.label.text) || "").trim(); } catch {} r = { sig, name: s.name, color: swatch(sig), text }; } } catch {}
+      try { const ch = chartApi(), sel = ch.selection().allSources() || [], s = ch.getAllShapes().find((x) => sel.includes(x.id) && LEVELS.test(x.name)); if (s) { const sig = styleOf(ch, s); r = { sig, name: s.name, color: swatch(sig), text: textOf(ch, s) }; } } catch {}
       return window.postMessage({ __tj: "sigok", ...r }, location.origin);
     }
     if (e.data.__tj !== "fwd") return;
@@ -137,8 +142,10 @@
     try {
       const ch = chartApi(), rp = await window.TradingViewApi.replayApi();
       if (!rp.isReplayStarted().value()) return say({ done: true, why: "Start bar replay first." });
-      const sigs = e.data.sigs || [], max = e.data.max || 300;
-      const pick = () => ch.getAllShapes().filter((s) => LEVELS.test(s.name) && (!sigs.length || sigs.includes(styleOf(ch, s)))).map((s) => { const L = levelsOf(ch, s); if (L) L.sig = styleOf(ch, s); return L; }).filter(Boolean);
+      const specs = (e.data.specs || []).map((t) => ({ ls: looseSig(t.sig), tx: normT(t.text), i: t.i })), max = e.data.max || 300;
+      const sigs = specs; // (kept for the messages below)
+      const specOf = (s) => { if (!specs.length) return { i: -1 }; const ls = looseSig(styleOf(ch, s)), tx = normT(textOf(ch, s)); return specs.find((t) => t.ls === ls && t.tx === tx) || null; };
+      const pick = () => ch.getAllShapes().filter((s) => LEVELS.test(s.name)).map((s) => { const sp = specOf(s); if (!sp) return null; const L = levelsOf(ch, s); if (L) L.ti = sp.i; return L; }).filter(Boolean);
       const touches = (b, L) => b[3] <= L.hi + 1e-9 && b[2] >= L.lo - 1e-9; // bar = [time, open, high, low, close]
       let bar = lastBar(); if (!bar) return say({ done: true, why: "Couldn't read the candles." });
       // drawings the current candle already touches don't count
@@ -157,13 +164,13 @@
         // check the new candle and the one before it (with its final high / low)
         const pb = prevBar(), cands = [pb, bar].filter((b) => b && b[0] > start);
         const hit = watch.find((L) => cands.some((b) => (!isFinite(L.t0) || L.t0 <= b[0]) && touches(b, L)));
-        if (hit) return say({ done: true, hit: true, n, sig: (hit || {}).sig, why: `Price hit the ${hit.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
+        if (hit) return say({ done: true, hit: true, n, ti: (hit || {}).ti, why: `Price hit the ${hit.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
         if (until && bar[0] + 14400 >= until) {
           // last candle before the close: let it fill in, then check it properly
           for (let i = 0; i < 100 && bar[2] === bar[3]; i++) { await sleep(20); const b = lastBar(); if (b && b[0] === bar[0]) bar = b; }
           await sleep(120); { const b = lastBar(); if (b && b[0] === bar[0]) bar = b; }
           const h2 = watch.find((L) => (!isFinite(L.t0) || L.t0 <= bar[0]) && touches(bar, L));
-          if (h2) return say({ done: true, hit: true, n, sig: h2.sig, why: `Price hit the ${h2.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` }); }
+          if (h2) return say({ done: true, hit: true, n, ti: h2.ti, why: `Price hit the ${h2.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` }); }
         if (until && bar[0] + 14400 >= until) return say({ done: true, why: `No hit before the ${e.data.until === "W" ? "weekly" : "daily"} close (${n} candle${n === 1 ? "" : "s"}).` });
         if (maxSec && bar[0] - start >= maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"} (${n} candles).` });
       }
@@ -177,7 +184,7 @@
     const out = {};
     try {
       const qs = new URLSearchParams(location.search);
-      const sym = qs.get("symbol") || (document.title.split(" ")[0] || "");
+      let sym = ""; try { const c = window.TradingViewApi.activeChart(); sym = c.symbol(); } catch {} sym = sym || qs.get("symbol") || (document.title.split(" ")[0] || "");
       out.symbol = sym;
       const iv = document.querySelector('#header-toolbar-intervals [aria-checked="true"], #header-toolbar-intervals button[aria-pressed="true"], [data-name="intervals"] [class*="isActive"], #header-toolbar-intervals button');
       out.interval = (iv && (iv.getAttribute("data-value") || iv.textContent || "").trim()) || qs.get("interval") || "";
