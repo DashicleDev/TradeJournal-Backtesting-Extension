@@ -40,7 +40,6 @@ It only fills empty fields, so you can still change the dates; **⟳ from chart*
 **Stop** pauses logging and keeps the trade: the start screen then offers **Continue trade** or **Discard it**.
 
 **Back** or the step tabs go to an earlier step (the chart switches back too).
-**☰** shows all fields on one page instead.
 
 ## Settings (⚙)
 

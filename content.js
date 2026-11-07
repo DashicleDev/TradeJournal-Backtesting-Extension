@@ -31,7 +31,7 @@
 
   /* ---------- storage ---------- */
   const store = (o) => chrome.storage.local.set(o);
-  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step", "logging", "autoFit", "look", "jLook"]); mini = !!o.mini; if (o.look) look = { ...look, ...o.look }; if (o.jLook) jLook = o.jLook; autoFit = o.autoFit !== false; logging = !!o.logging; view = o.view || "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
+  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step", "logging", "autoFit", "look", "jLook"]); mini = !!o.mini; if (o.look) look = { ...look, ...o.look }; if (o.jLook) jLook = o.jLook; autoFit = o.autoFit !== false; logging = !!o.logging; view = "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
   let saveT; const keep = () => { clearTimeout(saveT); saveT = setTimeout(() => store({ draft: D }), 250); };
 
   /* ---------- shell ---------- */
@@ -224,7 +224,7 @@
         ${f("According to plan?", seg("evaluation", [["plan", "Yes"], ["off", "No"]], D.evaluation))}
         ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}`,
       ltf: () => `<p class="hint">Find the reversal on the ${curStep()[1]}, then continue to grab the chart.</p>` };
-    const HEAD = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="view" title="${view === "steps" ? "Show all fields" : "Step by step"}">${view === "steps" ? "☰" : "▶"}</button><button type="button" class="x x2" data-act="settings" title="Settings">⚙</button><button type="button" class="x x2" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x x2" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`;
+    const HEAD = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="settings" title="Settings">⚙</button><button type="button" class="x x2" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x x2" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`;
     if (settings) {
       const L = look.match && jLook ? jLook : look, ST = [["chart", "Chart"], ["look", "Look"], ["account", "Account"]];
       const tab = ST.some(([k]) => k === setTab) ? setTab : "chart";
@@ -254,21 +254,6 @@
         ${s.failed || (s[2] && msg && /didn't come/.test(msg)) ? `<button type="button" class="lnk" data-act="skip">Continue without chart</button>` : ""}
         <button type="button" class="btn pri" data-act="next" ${busy ? "disabled" : ""}>${busy ? (last ? "Saving…" : "Grabbing…") : last ? "Save trade" : s[2] ? "📷 Continue" : "Continue"}</button></div>
 </div>`;
-    } else {
-    panel.innerHTML = `${HEAD}
-    <div class="body">
-      ${f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`)}
-      <div class="row2">${f(`Pair <button type="button" class="lnk inl" data-act="read" title="Read pair and replay date from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" list="tjpairs" autocomplete="off"><datalist id="tjpairs">${String((pj && pj.pairs) || "").split(/[\s,]+/).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`)}
-        ${f("Entry date", `<input type="date" data-k="date" value="${esc(D.date)}">`)}</div>
-      ${f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir))}
-      ${sec("w", "Weekly", wsum, B.weekly())}
-      ${sec("d", "Daily", dsum, B.daily())}
-      ${sec("h", "4H", hsum, B.h4())}
-      ${sec("c", "Charts", csum, `<p class="hint">Set the chart to the timeframe, then tap its camera. Alt+S on the chart works too.</p>
-        <div class="shots">${SLOTS.map(([k, l]) => `<div class="shot${armed === k ? " armed" : ""}">${D.links[k] ? `<img src="${tvImg(D.links[k].match(/x\/([^/]+)/)[1])}" alt="${l} chart"><button type="button" class="rm" data-rm="${k}" title="Remove">×</button>` : `<div class="ph"></div>`}<button type="button" class="btn sm${armed === k ? " pri" : ""}" data-arm="${k}">📷 ${l}</button></div>`).join("")}</div>`)}
-      ${sec("r", "Result", rsum, B.result())}
-    </div>
-    <div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb"><button type="button" class="btn pri" data-act="save" ${busy ? "disabled" : ""}>${busy ? "Saving…" : "Save trade"}</button><button type="button" class="btn ghost" data-act="clear">Clear</button><span class="sp"></span><button type="button" class="lnk" data-act="logout" title="${esc(user.email)}">Sign out</button></div></div>`;
     }
     const b = panel.querySelector(".body"); if (b) b.scrollTop = top;
     fit();
@@ -290,7 +275,6 @@
     if (d.act === "hide") { mini = true; store({ mini }); return render(); }
     if (d.act === "expand") { mini = false; store({ mini }); return render(); }
     if (d.act === "close") return toggle(false);
-    if (d.act === "view") { view = view === "steps" ? "form" : "steps"; store({ view }); msg = ""; return render(); }
     if (d.act === "log") { logging = true; store({ logging }); msg = ""; return startSteps(); }
     if (d.act === "stoplog") { logging = false; store({ logging }); msg = ""; return render(); }
     if (d.act === "discard") { const pj = D.project, pr = D.pair; D = { ...blank(), project: pj, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
