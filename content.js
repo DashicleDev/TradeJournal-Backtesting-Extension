@@ -89,13 +89,13 @@
   const getPos = () => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "posinfo") { removeEventListener("message", f); posList = e.data.list || []; const userSel = e.data.selId && e.data.selId !== shownId, chosen = !userSel && D.posPick && posList.find((x) => x.id === D.posPick); if (chosen) e.data.pos = chosen; if (userSel) { D.posPick = ""; shownId = ""; } posWhy = e.data.pos ? "" : !e.data.api ? "Couldn't read the drawings on this chart." : "No Long/Short position on the chart yet."; done(e.data.pos || null); } }; addEventListener("message", f); window.postMessage({ __tj: "pos" }, location.origin); setTimeout(() => { removeEventListener("message", f); posWhy = "Couldn't read the drawings on this chart."; done(null); }, 800); });
   const day = (t) => t ? new Date(t * 1000).toISOString().slice(0, 10) : "";
   const posLab = (p) => { const d = (t) => t ? new Date(t * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" }) : "?"; return `${p.dir === "long" ? "↑ Long" : "↓ Short"} · ${d(p.t0)}${p.t1 ? " → " + d(p.t1) : ""}`; };
-  const showPos = (p) => { if (p) shownId = p.id; if (p) window.postMessage({ __tj: "posshow", id: p.id, t0: p.t0, t1: p.t1 }, location.origin); };
+  const showPos = (p, scroll = true) => { if (p) shownId = p.id; if (p) window.postMessage({ __tj: "posshow", id: p.id, t0: p.t0, t1: p.t1, scroll }, location.origin); };
   const curPos = () => posList.find((x) => x.id === D.posId);
   const posLine = () => { const p = curPos(); return p ? `<div class="posl"><span>Position</span><b>${esc(posLab(p))}</b><button type="button" class="lnk inl" data-act="posshow" title="Highlight it on the chart">Show</button></div>` : ""; };
   const posSel = () => posList.length ? f(`Position <button type="button" class="lnk inl" data-act="posrefresh" title="Look for positions on the chart again">⟳</button>`, `<select data-k="posPick">${posList.map((p) => `<option value="${esc(p.id)}" ${p.id === D.posId ? "selected" : ""}>${esc(posLab(p))}</option>`).join("")}</select>`) : "";
   // fills empty fields only, unless "force" lists the fields to overwrite
   async function fromPos(force = []) {
-    const p = await getPos(); if (!p) return null; D.posId = p.id;
+    const p = await getPos(); if (!p) return null; D.posId = p.id; showPos(p, false);
     const set = (k, v) => { if (v && (force.includes(k) || !D[k])) D[k] = v; };
     set("dir", p.dir); set("date", day(p.t0)); set("closeDate", day(p.t1)); keep(); return p;
   }

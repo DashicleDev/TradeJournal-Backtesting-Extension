@@ -81,7 +81,7 @@
     try {
       const api = window.TradingViewApi, ch = api && (api.activeChart ? api.activeChart() : api.chart && api.chart());
       try { const s = ch.selection(); if (s.clear) s.clear(); if (s.add) { s.add(e.data.id); ok = true; } else if (s.set) { s.set([e.data.id]); ok = true; } } catch {}
-      const { t0, t1 } = e.data; if (t0 && ch.setVisibleRange) { const end = t1 || t0, pad = Math.max(86400 * 3, (end - t0) * 0.6); ch.setVisibleRange({ from: t0 - pad, to: end + pad }); ok = true; }
+      const { t0, t1 } = e.data; if (e.data.scroll && t0 && ch.setVisibleRange) { const end = t1 || t0, pad = Math.max(86400 * 3, (end - t0) * 0.6); ch.setVisibleRange({ from: t0 - pad, to: end + pad }); ok = true; }
     } catch {}
     window.postMessage({ __tj: "posshown", ok }, location.origin);
   });
