@@ -135,10 +135,10 @@
   // next daily / weekly candle close (forex: 17:00 New York; weekly = Friday) strictly after time t (seconds)
   const nyParts = (t) => { const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(new Date(t * 1000)); const g = (k) => (p.find((x) => x.type === k) || {}).value; return { wd: g("weekday"), h: +g("hour"), m: +g("minute") }; };
   const nextClose = (t, kind) => { let x = Math.floor(t / 3600) * 3600 + 3600; for (let i = 0; i < 24 * 9; i++, x += 3600) { const q = nyParts(x); if (q.h === 17 && q.m === 0 && (kind === "W" ? q.wd === "Fri" : !["Sat", "Sun"].includes(q.wd))) return x; } return 0; };
-  let fwdStop = false;
+  let fwdStop = false, fwdBack = "";
   window.addEventListener("message", async (e) => {
     if (e.source !== window || !e.data) return;
-    const say = (o) => window.postMessage({ __tj: "fwdst", ...o }, location.origin);
+    const say = (o) => window.postMessage({ __tj: "fwdst", ...(o.done ? { back: fwdBack } : {}), ...o }, location.origin);
     if (e.data.__tj === "fwdstop") { fwdStop = true; return; }
     if (e.data.__tj === "sig") { // style of the selected line / rectangle, to use as a trigger
       let r = { err: "Select a horizontal line or rectangle on the chart first." };
@@ -146,7 +146,7 @@
       return window.postMessage({ __tj: "sigok", ...r }, location.origin);
     }
     if (e.data.__tj !== "fwd") return;
-    fwdStop = false;
+    fwdStop = false; fwdBack = "";
     // Auto (price scale) on while skipping, so the candles stay in view; back off afterwards if it was off
     const aBtn = () => { const all = [...document.querySelectorAll('button[aria-label="Toggle auto scale"]')], vis = all.filter((b) => b.offsetParent); return vis.pop() || all.pop() || null; };
     const aOn = () => { const b = aBtn(); return !!b && [...b.classList].some((c) => /^priceScaleModeButton_activated/.test(c)); };
@@ -154,21 +154,14 @@
     try {
       const ch = chartApi(), rp = await (window.__tjRp || (window.__tjRp = window.TradingViewApi.replayApi()));
       if (!rp.isReplayStarted().value()) return say({ done: true, why: "Start bar replay first." });
-      // wait until the chart has its candles (right after a timeframe switch it is still loading)
-      const want = e.data.res ? String(e.data.res).toUpperCase().replace(/^1(?=[DWM]$)/, "") : "";
-      const resOk = () => { try { return !want || String(ch.resolution()).toUpperCase().replace(/^1(?=[DWM]$)/, "") === want; } catch { return true; } };
-      const loaded = () => { try { const b = barsOf(); return resOk() && b && (b.size ? b.size() : b.lastIndex() + 1) >= 1 && !!lastBar(); } catch { return false; } };
-      for (let i = 0; i < 300 && !loaded(); i++) await new Promise((r) => setTimeout(r, 30));
-      if (!loaded()) return say({ done: true, why: "The chart is still loading. Try again in a moment." });
-      if (e.data.res) { let k = (lastBar() || []).join(), same = 0; for (let i = 0; i < 40 && same < 3; i++) { await new Promise((r) => setTimeout(r, 30)); const n = (lastBar() || []).join(); if (n === k) same++; else { same = 0; k = n; } } }
       const specs = (e.data.specs || []).map((t) => ({ ls: looseSig(t.sig), tx: normT(t.text), i: t.i })), max = e.data.max || 300;
       const sigs = specs; // (kept for the messages below)
       const specOf = (s) => { if (!specs.length) return { i: -1 }; const ls = looseSig(styleOf(ch, s)), tx = normT(textOf(ch, s)); return specs.find((t) => t.ls === ls && t.tx === tx) || null; };
-      const pick = () => ch.getAllShapes().filter((s) => LEVELS.test(s.name)).map((s) => { const sp = specOf(s); if (!sp) return null; const L = levelsOf(ch, s); if (L) L.ti = sp.i; return L; }).filter(Boolean);
+      const pick = () => ch.getAllShapes().filter((s) => LEVELS.test(s.name)).map((s) => { const sp = specOf(s); if (!sp) return null; const L = levelsOf(ch, s); if (L) { L.ti = sp.i; L.label = textOf(ch, s); } return L; }).filter(Boolean);
       const touches = (b, L) => b[3] <= L.hi + 1e-9 && b[2] >= L.lo - 1e-9; // bar = [time, open, high, low, close]
-      let bar = lastBar(); if (!bar) return say({ done: true, why: "Couldn't read the candles." });
-      // drawings the current candle already touches don't count
-      let watch = pick().filter((L) => !touches(bar, L));
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      // 1. your matching drawings and their prices, read on the timeframe you are on
+      const watch = pick();
       if (!watch.length) {
         let why = sigs.length ? "No lines or rectangles in your trigger styles ahead of price." : "No horizontal lines or rectangles ahead of price.";
         if (!ch.getAllShapes().some((s) => LEVELS.test(s.name))) { const names = [...new Set(ch.getAllShapes().map((s) => s.name))]; why += names.length ? " Drawings on the chart: " + names.join(", ") + "." : " There are no drawings on this chart."; }
@@ -178,7 +171,7 @@
             const ls = looseSig(styleOf(ch, s)), tx = normT(textOf(ch, s)), nm = textOf(ch, s) || s.name.replace("horizontal_", "").replace("_", " ");
             if (specs.some((t) => t.ls === ls && t.tx === tx)) { const L = levelsOf(ch, s), f = (x) => +(+x).toFixed(5);
               if (!L) return `${nm}: matches, but its price couldn't be read (${JSON.stringify(rawPts(ch, s)).slice(0, 120)})`;
-              return touches(bar, L) ? `${nm}: matches, but the current candle (H ${f(bar[2])} L ${f(bar[3])}) already touches it at ${f(L.lo)}` : `${nm}: matches at ${f(L.lo)}`; }
+              return `${nm}: matches at ${f(L.lo)}`; }
             const same = specs.find((t) => t.tx === tx) || specs.find((t) => tool(t.ls) === tool(ls) && cols(t.ls) === cols(ls));
             if (!same) return `${nm}: no style with this text`;
             const d = [tool(same.ls) !== tool(ls) && "other tool", cols(same.ls) !== cols(ls) && "other colour", same.tx !== tx && "other text"].filter(Boolean).join(", ");
@@ -187,10 +180,24 @@
         }
         return say({ done: true, why });
       }
-      const start = bar[0], maxSec = e.data.maxSec || 0, until = e.data.until ? nextClose(bar[0] + 14400, e.data.until) : 0;
-      for (let n = 1; n <= max; n++) {
+      // 2. switch to 4H
+      const norm = (r) => String(r || "").toUpperCase().replace(/^1(?=[DWM]$)/, ""), want = norm(e.data.res);
+      let prev = ""; try { prev = String(ch.resolution()); } catch {}
+      const switched = !!want && norm(prev) !== want; fwdBack = switched ? prev : "";
+      if (switched) { try { ch.setResolution(e.data.res); } catch {} }
+      // 3. first candle right away, not checked
+      try { rp.doStep(); } catch {}
+      const loaded = () => { try { const b = barsOf(); return (!want || norm(ch.resolution()) === want) && b && (b.size ? b.size() : b.lastIndex() + 1) >= 1 && !!lastBar(); } catch { return false; } };
+      for (let i = 0; i < 300 && !loaded(); i++) await sleep(30);
+      if (!loaded()) return say({ done: true, why: "The chart is still loading. Try again in a moment." });
+      await sleep(40);
+      let bar = lastBar(); say({ n: 1 });
+      // the close to run to: the next one after this candle (if this candle already closes the day / week, the one after that)
+      const start = bar[0], maxSec = e.data.maxSec || 0; let until = e.data.until ? nextClose(bar[0], e.data.until) : 0;
+      if (until && bar[0] + 14400 >= until) until = nextClose(bar[0] + 14400, e.data.until);
+      for (let n = 2; n <= max; n++) {
         if (fwdStop) return say({ done: true, why: `Stopped after ${n - 1} candles.` });
-        const t = bar[0], sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+        const t = bar[0];
         // step until a new candle starts. A step can also just extend the current candle (the replay can step in
         // smaller pieces, e.g. at the start of a week); that counts as progress and is checked for a hit right away.
         let nb = null, idle = 0;

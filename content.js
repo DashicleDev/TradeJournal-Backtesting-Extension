@@ -133,7 +133,7 @@
   /* ---------- forward to drawing ---------- */
   addEventListener("message", (e) => {
     if (e.source !== window || !e.data) return;
-    if (e.data.__tj === "fwdst") { if (e.data.done) { fwd = null; msg = e.data.why || ""; const tl = e.data.hit && e.data.ti != null && e.data.ti >= 0 && (trig[e.data.ti] || {}).label; if (tl) msg = msg.replace(/the (rectangle|line)/, tl); const back = skipBack; skipBack = ""; if (back && !e.data.hit) setTf(back); } else fwd = { n: e.data.n }; render(); }
+    if (e.data.__tj === "fwdst") { if (e.data.done) { fwd = null; msg = e.data.why || ""; const tl = e.data.hit && e.data.ti != null && e.data.ti >= 0 && (trig[e.data.ti] || {}).label; if (tl) msg = msg.replace(/the (rectangle|line)/, tl); if (e.data.back && !e.data.hit) setTf(e.data.back); } else fwd = { n: e.data.n }; render(); }
     if (e.data.__tj === "sigok") { if (e.data.err) msg = e.data.err; else if (trig.some((t) => t.sig === e.data.sig)) msg = "That style is already in the list.";
       else { trig = [...trig, { sig: e.data.sig, name: e.data.name, color: e.data.color, label: e.data.text || "", text: e.data.text || "" }]; saveSet({ trig }); msg = ""; } render(); }
   });
@@ -318,8 +318,7 @@
     if (d.act === "fwd") { skipBack = ""; fwd = { n: 0 }; msg = ""; render(); window.postMessage({ __tj: "fwd", specs: onSigs(), max: 300 }, location.origin); return; }
     if ((d.act === "skip1d" || d.act === "skip1w" || d.act === "fwd") && trig.length && !onSigs().length) { msg = "All your styles are off. Turn at least one on."; return render(); }
     if (d.act === "skip1d" || d.act === "skip1w") { const days = d.act === "skip1d" ? 1 : 7; fwd = { n: 0 }; msg = ""; render();
-      const ok = await setTf("240"); skipBack = ok === true ? tfPrev : ""; if (!ok) { fwd = null; msg = "Switch the chart to 4H yourself, then try again."; return render(); }
-      window.postMessage({ __tj: "fwd", specs: onSigs(), max: 300, until: days === 1 ? "D" : "W", res: ok === "same" ? "" : "240" }, location.origin); return; }
+      window.postMessage({ __tj: "fwd", specs: onSigs(), max: 300, until: days === 1 ? "D" : "W", res: "240" }, location.origin); return; }
     if (d.act === "fwdstop") { window.postMessage({ __tj: "fwdstop" }, location.origin); return; }
     if (d.act === "trigadd") { window.postMessage({ __tj: "sig" }, location.origin); return; }
     if (d.tgtrig != null) { const k = +d.tgtrig; if (trig[k]) { trig[k] = { ...trig[k], on: trig[k].on === false }; saveSet({ trig }); } return render(); }
