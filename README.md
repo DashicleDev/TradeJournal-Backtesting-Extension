@@ -37,7 +37,7 @@ Click the logo, then **+** (New trade). The panel walks you through the trade:
 The panel takes direction, entry date and close date from it (the one selected on the chart, otherwise the one picked under **Position** on the first step, otherwise the one with the latest entry).
 It only fills empty fields, so you can still change the dates; **⟳ from chart** reads them again.
 
-On the start screen, **⏩ Until daily close** / **⏩ Until weekly close** switch the chart to 4H and skip to the next candle that touches one of your drawings, at most until the daily or weekly candle closes (forex: 17:00 New York, weekly on Friday).
+On the start screen, **⏩ Daily CC** / **⏩ Weekly CC** switch the chart to 4H and skip to the next candle that touches one of your drawings, at most until the daily or weekly candle closes (forex: 17:00 New York, weekly on Friday).
 
 While a skip runs, **■ Stop** stops it. In ⚙ → Replay you can add your templates (select a drawing, **Use the selected drawing's style**) so it only stops at those.
 
