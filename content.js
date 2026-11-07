@@ -172,7 +172,7 @@
   }
 
   /* ---------- render ---------- */
-  const seg = (k, opts, v) => `<div class="segs">${opts.map(([val, l]) => `<button type="button" class="sg${v === val ? " on" : ""}${val === "against" ? " neg" : ""}" data-k="${k}" data-v="${esc(val)}">${l}</button>`).join("")}</div>`;
+  const seg = (k, opts, v) => `<div class="segs">${opts.map(([val, l]) => `<button type="button" class="sg${v === val ? " on" : ""}${val === "against" ? " neg" : val === "for" ? " pos" : ""}" data-k="${k}" data-v="${esc(val)}">${l}</button>`).join("")}</div>`;
   const sel = (k, opts, v, ph) => `<select data-k="${k}"><option value="">${ph}</option>${opts.map((o) => `<option ${o === v ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
   const f = (l, h) => `<div class="f"><span>${l}</span>${h}</div>`;
   const sec = (id, title, sum, body) => `<div class="sec${collapsed[id] ? " shut" : ""}"><button type="button" class="sh" data-sec="${id}"><b>${title}</b><em>${esc(sum)}</em><i>${collapsed[id] ? "▸" : "▾"}</i></button>${collapsed[id] ? "" : `<div class="sb">${body}</div>`}</div>`;
@@ -367,7 +367,7 @@
   input:focus,select:focus,textarea:focus{border-color:var(--acc)}textarea{resize:vertical}
   .segs{display:flex;flex-wrap:wrap;gap:4px}
   .sg{border:1px solid var(--line);background:var(--in);color:var(--ink);border-radius:7px;padding:5px 9px;font-size:12.5px;cursor:pointer}
-  .sg.on{background:var(--good);border-color:var(--good);color:#fff}.sg.on.neg{background:var(--bad);border-color:var(--bad)}
+  .sg.on{background:var(--acc);border-color:var(--acc);color:#fff}.sg.on.pos{background:var(--good);border-color:var(--good)}.sg.on.neg{background:var(--bad);border-color:var(--bad)}
   .sec{border:1px solid var(--line);border-radius:9px}
   .sh{width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;color:var(--ink);padding:8px 10px;cursor:pointer;text-align:left}
   .sh b{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}.sh em{font-style:normal;color:var(--ink);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sh i{font-style:normal;color:var(--mut)}
@@ -395,6 +395,6 @@
   .btn.big{padding:11px 14px;font-size:14px}.idle{gap:12px}
   .msg{margin:0;font-size:12px;color:var(--ink);line-height:1.4}
   .stp{display:flex;gap:3px;padding:8px 12px 0}.st{flex:1;min-width:0;border:0;border-bottom:2px solid var(--line);background:none;color:var(--mut);font-size:11px;font-weight:600;padding:4px 2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .st.done{color:var(--good);border-color:var(--good)}.st.on{color:var(--ink);border-color:var(--acc)}
+  .st.done{color:var(--ink);border-color:color-mix(in srgb,var(--acc) 45%,transparent)}.st.on{color:var(--ink);border-color:var(--acc)}
   .shot.cur img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:6px;border:1px solid var(--line)}`; }
 })();
