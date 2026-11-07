@@ -13,7 +13,7 @@
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
   let dd = null, mini = false, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
   const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "" });
-  let autoFit = true, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
+  let autoFit = true, settings = false, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
 
   /* ---------- storage ---------- */
   const store = (o) => chrome.storage.local.set(o);
@@ -209,16 +209,20 @@
         ${f("According to plan?", seg("evaluation", [["plan", "Yes"], ["off", "No"]], D.evaluation))}
         ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}`,
       ltf: () => `<p class="hint">Find the reversal on the ${curStep()[1]}, then continue to grab the chart.</p>` };
-    const HEAD = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="view" title="${view === "steps" ? "Show all fields" : "Step by step"}">${view === "steps" ? "☰" : "▶"}</button><button type="button" class="x x2" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x x2" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`;
-    if (view === "steps" && !logging) {
+    const HEAD = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="view" title="${view === "steps" ? "Show all fields" : "Step by step"}">${view === "steps" ? "☰" : "▶"}</button><button type="button" class="x x2" data-act="settings" title="Settings">⚙</button><button type="button" class="x x2" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x x2" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`;
+    if (settings) {
+      panel.innerHTML = `${HEAD}<div class="body idle"><b class="ttl">Settings</b>
+        <label class="chk"><input type="checkbox" data-set="autoFit" ${autoFit ? "checked" : ""}><span>Fit chart after switching timeframe<small>Turns Auto (price scale) on and off, so the chart fits the screen.</small></span></label>
+        <p class="hint">Signed in as ${esc(user.email)} · version ${esc(chrome.runtime.getManifest().version)}</p>
+      </div><div class="foot"><div class="fb"><button type="button" class="btn ghost" data-act="settings">Back</button><span class="sp"></span><button type="button" class="lnk" data-act="logout">Sign out</button></div></div>`;
+    } else if (view === "steps" && !logging) {
       const draft = D.dir || D.fase || D.concept || D.entry4h || Object.keys(D.links).length;
       panel.innerHTML = `${HEAD}<div class="body idle">
         ${f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`)}
         ${draft ? `<p class="hint">Unfinished trade: ${esc([D.pair, D.dir && (D.dir === "long" ? "↑ Long" : "↓ Short"), steps()[step] && "at " + steps()[step][1]].filter(Boolean).join(" · "))}</p>
           <button type="button" class="btn pri big" data-act="log">▶ Continue trade</button><button type="button" class="btn ghost" data-act="discard">Discard it</button>`
         : `<button type="button" class="btn pri big" data-act="log">＋ Log trade</button><p class="hint">Opens the Weekly, then Daily and 4H, grabbing each chart as you go.</p>`}
-        <label class="chk"><input type="checkbox" data-set="autoFit" ${autoFit ? "checked" : ""}><span>Fit chart after switching timeframe<small>Turns Auto (price scale) on and off, so the chart fits the screen.</small></span></label>
-      </div><div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb"><span class="sp"></span><button type="button" class="lnk" data-act="logout" title="${esc(user.email)}">Sign out</button></div></div>`;
+      </div>${msg ? `<div class="foot"><p class="msg">${esc(msg)}</p></div>` : ""}`;
     } else if (view === "steps") {
       const L = steps(), s = curStep(), last = step === L.length - 1, link = s[2] && D.links[s[0]];
       panel.innerHTML = `${HEAD}
@@ -271,12 +275,13 @@
     if (d.act === "discard") { const pj = D.project, pr = D.pair; D = { ...blank(), project: pj, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
     if (d.act === "posshow") { showPos(curPos()); return; }
     if (d.act === "posrefresh") { const p = await fromPos(["dir", "date", "closeDate"]); msg = p ? "" : posWhy; return render(); }
+    if (d.act === "settings") { settings = !settings; msg = ""; return render(); }
     if (d.act === "next") return next();
     if (d.act === "back") return goStep(step - 1);
     if (d.act === "skip") { msg = ""; return goStep(step + 1); }
     if (d.go) { const i = +d.go; if (i > step && curStep()[0] === "setup" && missSetup().length) { msg = "Still needed: " + missSetup().join(", ") + "."; return render(); } return goStep(i); }
     if (d.act === "reload") { clearTimeout(saveT); await store({ draft: D }); chrome.runtime.sendMessage({ type: "reload" }); return; }
-    if (d.act === "logout") { await call("logout"); user = null; msg = ""; return render(); }
+    if (d.act === "logout") { await call("logout"); user = null; settings = false; msg = ""; return render(); }
     if (d.act === "save") return save();
     if (d.act === "clear") { const pj = D.project; D = { ...blank(), project: pj }; msg = ""; keep(); return render(); }
     if (d.act === "readdate" || d.act === "readclose") { const k = d.act === "readdate" ? "date" : "closeDate", p = await fromPos([k]);
@@ -361,7 +366,7 @@
   .foot{border-top:1px solid #2a3046;padding:10px 12px;display:grid;gap:8px}.fb{display:flex;gap:8px;align-items:center}.sp{flex:1}
   .lnk{background:none;border:0;color:#8d94ad;font-size:12px;cursor:pointer;text-decoration:underline}.lnk.inl{font-size:11px;padding:0;margin-left:6px;color:#9aa6ff;text-decoration:none}
   .posl{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 9px;border:1px solid #2a3046;border-radius:7px;background:#0b0e17}.posl span{color:#8d94ad;font-weight:600;font-size:11px}.posl b{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.posl .lnk{margin:0}
-  .chk{display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-top:4px}.chk input{width:auto;margin-top:2px;accent-color:#7c8cff}.chk small{display:block;color:#8d94ad;font-size:11.5px;margin-top:2px}
+  .ttl{font-size:13px}.chk{display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-top:4px}.chk input{width:auto;margin-top:2px;accent-color:#7c8cff}.chk small{display:block;color:#8d94ad;font-size:11.5px;margin-top:2px}
   .btn.big{padding:11px 14px;font-size:14px}.idle{gap:12px}
   .msg{margin:0;font-size:12px;color:#c8cdf9;line-height:1.4}
   .stp{display:flex;gap:3px;padding:8px 12px 0}.st{flex:1;min-width:0;border:0;border-bottom:2px solid #2a3046;background:none;color:#8d94ad;font-size:11px;font-weight:600;padding:4px 2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
