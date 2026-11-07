@@ -166,9 +166,17 @@
       for (let n = 1; n <= max; n++) {
         if (fwdStop) return say({ done: true, why: `Stopped after ${n - 1} candles.` });
         const t = bar[0], sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-        try { rp.doStep(); } catch {}
-        // wait for the next candle; over a weekend gap TradingView can take a while, so step again once if nothing comes
-        let nb = null; for (let i = 0; i < 400; i++) { const b = lastBar(); if (b && b[0] !== t) { nb = b; break; } if (i === 150) { try { rp.doStep(); } catch {} } await sleep(20); }
+        // step until a new candle starts. A step can also just extend the current candle (the replay can step in
+        // smaller pieces, e.g. at the start of a week); that counts as progress and is checked for a hit right away.
+        let nb = null, idle = 0;
+        for (let k = 0; k < 40 && !nb && idle < 4; k++) {
+          const before = (lastBar() || []).join(); try { rp.doStep(); } catch {}
+          let upd = null; for (let i = 0; i < 100; i++) { await sleep(20); const b = lastBar(); if (b && b.join() !== before) { upd = b; break; } }
+          if (!upd) { idle++; continue; } idle = 0;
+          if (upd[0] !== t) { nb = upd; break; }
+          const sub = watch.find((L) => (!isFinite(L.t0) || L.t0 <= upd[0]) && touches(upd, L));
+          if (sub) return say({ done: true, hit: true, n, ti: sub.ti, why: `Price hit the ${sub.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
+        }
         if (!nb) return say({ done: true, why: `No new candle came in (after ${n - 1}). Is the replay at the end?` });
         bar = nb; say({ n });
         if (maxSec && bar[0] - start > maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"}.` });
