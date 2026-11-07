@@ -59,7 +59,7 @@
         const isAuto = () => { const s = scale(); if (s && s.isAutoScale) return s.isAutoScale(); const b = autoBtn(); return !!b && /activated/.test(b.className); };
         const flip = (v) => { const b = autoBtn(); if (b) b.click(); else { const s = scale(); if (s && s.setAutoScale) s.setAutoScale(v); } };
         const wasAuto = isAuto();
-        const fit = async () => { if (wasAuto) return; await W(300); await frame(); if (isAuto()) return; flip(true); await W(250); await frame(); if (isAuto()) flip(false); };
+        const fit = async () => { if (wasAuto) return; await W(800); await frame(); if (isAuto()) return; flip(true); await W(600); await frame(); if (isAuto()) flip(false); };
         Promise.resolve(ch.setResolution(res)).catch(() => {}).then(fit);
         ok = true; } } catch {}
     if (!ok) { const alt = { "1W": ["1W", "W"], "1D": ["1D", "D"] }[res] || [res]; const b = alt.map((v) => document.querySelector(`#header-toolbar-intervals [data-value="${v}"]`)).find(Boolean); if (b) { b.click(); ok = true; } }
