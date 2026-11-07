@@ -83,6 +83,21 @@
     render();
   }
 
+  /* ---------- long / short position tool ---------- */
+  // hook.js reads the selected (or newest) Long/Short Position drawing. Positions used for a saved
+  // trade are skipped next time, unless you select one.
+  let usedPos = [];
+  chrome.storage.local.get("usedPos").then((o) => { usedPos = o.usedPos || []; });
+  const getPos = () => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "posinfo") { removeEventListener("message", f); done(e.data.pos || null); } }; addEventListener("message", f); window.postMessage({ __tj: "pos", skip: usedPos }, location.origin); setTimeout(() => { removeEventListener("message", f); done(null); }, 800); });
+  const day = (t) => t ? new Date(t * 1000).toISOString().slice(0, 10) : "";
+  // fills empty fields only, unless "force" lists the fields to overwrite
+  async function fromPos(force = []) {
+    const p = await getPos(); if (!p) return null; D.posId = p.id;
+    const set = (k, v) => { if (v && (force.includes(k) || !D[k])) D[k] = v; };
+    set("dir", p.dir); set("date", day(p.t0)); set("closeDate", day(p.t1)); keep(); return p;
+  }
+  const replayDate = async () => { await ask(); return dateOf(info.replay); };
+
   /* ---------- step by step ---------- */
   // ask the page to switch the chart's timeframe (hook.js does it through TradingView's own API)
   const setTf = (res) => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "tfok") { removeEventListener("message", f); done(e.data.ok); } }; addEventListener("message", f); window.postMessage({ __tj: "tf", res }, location.origin); setTimeout(() => { removeEventListener("message", f); done(false); }, 1500); });
@@ -95,11 +110,12 @@
   async function goStep(i) {
     step = Math.max(0, Math.min(steps().length - 1, i)); store({ step }); dd = null;
     const s = curStep(); if (s[2]) { msg = ""; render(); const ok = await setTf(s[2]); msg = ok ? "" : `Switch the chart to ${s[1]} yourself.`;
-      if (s[0] === dateStep() && !D.date) { await ask(); const dt = dateOf(info.replay); if (dt) { D.date = dt; keep(); } } }
+      if (s[0] === dateStep() && !D.date) { await fromPos(); if (!D.date) { const dt = await replayDate(); if (dt) { D.date = dt; keep(); } } } }
+    if (s[0] === "result" && !D.closeDate) await fromPos();
     render();
   }
   async function startSteps() {
-    await ask(); if (!D.pair && info.symbol) D.pair = pairOf(info.symbol); keep();
+    await ask(); if (!D.pair && info.symbol) D.pair = pairOf(info.symbol); await fromPos(); keep();
     await goStep(D.pair && D.dir ? Math.max(step, 1) : 0);
   }
   async function next() {
@@ -130,6 +146,7 @@
     const miss = missing(); if (miss.length) { msg = "Still needed: " + miss.join(", ") + (view === "steps" && !D.date ? ` (on the ${steps().find((x) => x[0] === dateStep())[1]} step)` : "") + "."; return render(); }
     busy = true; render();
     try { const doc = toDoc(); await call("save", { doc }); const pj = D.project, pr = D.pair;
+      if (D.posId) { usedPos = [...usedPos.filter((x) => x !== D.posId), D.posId].slice(-50); store({ usedPos }); }
       D = { ...blank(), project: pj, pair: pr }; store({ draft: D, lastProject: pj });
       msg = `Saved ${doc.pair} ${doc.dir} to ${(projects.find((p) => p.id === pj) || {}).name || "Backtest"}.`; if (view === "steps") { step = 0; store({ step }); } }
     catch (e) { msg = "Couldn't save: " + e.message; }
@@ -183,7 +200,7 @@
         ${D.entry4h === "Engulfing Candle" ? f("Reversal on", seg("ecTf", [["1h", "1 hour"], ["2h", "2 hour"]], D.ecTf)) : ""}
         ${f("Scale-in", `<div class="segs"><button type="button" class="sg${D.scaleIn ? " on" : ""}" data-tog="scaleIn">Scale-in</button></div>`)}`, result: () => `
         ${f("Outcome", seg("outcome", [["win", "Win"], ["be", "BE"], ["loss", "Loss"]], D.outcome))}
-        ${f(`Close date <button type="button" class="lnk inl" data-act="readclose" title="Use the replay date on the chart">⟳ from chart</button>`, `<input type="date" data-k="closeDate" value="${esc(D.closeDate)}" min="${esc(D.date)}">`)}
+        ${f(`Close date <button type="button" class="lnk inl" data-act="readclose" title="From the Long/Short position (right edge), or the replay date">⟳ from chart</button>`, `<input type="date" data-k="closeDate" value="${esc(D.closeDate)}" min="${esc(D.date)}">`)}
         <div class="row2">${f("Result (R)", `<input type="number" step="any" data-k="r" value="${esc(D.r)}">`)}${f("Max R reached", `<input type="number" step="any" min="0" data-k="maxR" value="${esc(D.maxR)}">`)}</div>
         ${f("Exit", sel("exit", P.plan.exits.filter((x) => x !== "Invalid, cancelled"), D.exit, "Choose…"))}
         ${f("According to plan?", seg("evaluation", [["plan", "Yes"], ["off", "No"]], D.evaluation))}
@@ -194,7 +211,7 @@
       const L = steps(), s = curStep(), last = step === L.length - 1, link = s[2] && D.links[s[0]];
       panel.innerHTML = `${HEAD}
       <div class="stp">${L.map(([k, l], i) => `<button type="button" class="st${i === step ? " on" : ""}${i < step ? " done" : ""}" data-go="${i}">${esc(l)}</button>`).join("")}</div>
-      <div class="body">${s[2] ? `<p class="hint">Chart is on ${esc(s[1])}. Position it, fill this in, then Continue grabs the chart.</p>` : ""}${B[s[0]]()}${s[0] === dateStep() ? f(`Entry date <button type="button" class="lnk inl" data-act="readdate" title="Use the replay date on the chart">⟳ from chart</button>`, `<input type="date" data-k="date" value="${esc(D.date)}">`) : ""}
+      <div class="body">${s[2] ? `<p class="hint">Chart is on ${esc(s[1])}. Position it, fill this in, then Continue grabs the chart.</p>` : ""}${B[s[0]]()}${s[0] === dateStep() ? f(`Entry date <button type="button" class="lnk inl" data-act="readdate" title="From the Long/Short position, or the replay date">⟳ from chart</button>`, `<input type="date" data-k="date" value="${esc(D.date)}">`) : ""}
         ${link ? `<div class="shot cur"><img src="${tvImg(link.match(/x\/([^/]+)/)[1])}" alt="${esc(s[1])} chart"><button type="button" class="rm" data-rm="${s[0]}" title="Remove">×</button></div>` : ""}</div>
       <div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb">${step ? `<button type="button" class="btn ghost" data-act="back" ${busy ? "disabled" : ""}>Back</button>` : ""}<span class="sp"></span>
         ${s.failed || (s[2] && msg && /didn't come/.test(msg)) ? `<button type="button" class="lnk" data-act="skip">Continue without chart</button>` : ""}
@@ -245,9 +262,11 @@
     if (d.act === "logout") { await call("logout"); user = null; msg = ""; return render(); }
     if (d.act === "save") return save();
     if (d.act === "clear") { const pj = D.project; D = { ...blank(), project: pj }; msg = ""; keep(); return render(); }
-    if (d.act === "readdate") { await ask(); const dt = dateOf(info.replay); if (dt) D.date = dt; msg = dt ? "" : "Couldn't read the replay date, so fill it in yourself."; keep(); return render(); }
-    if (d.act === "readclose") { await ask(); const dt = dateOf(info.replay); if (dt) D.closeDate = dt; msg = dt ? "" : "Couldn't read the replay date, so fill it in yourself."; keep(); return render(); }
-    if (d.act === "read") { await ask(); if (info.symbol) D.pair = pairOf(info.symbol); const dt = dateOf(info.replay); if (dt) D.date = dt; msg = dt ? "" : "Couldn't read the replay date, so fill it in yourself."; keep(); return render(); }
+    if (d.act === "readdate" || d.act === "readclose") { const k = d.act === "readdate" ? "date" : "closeDate", p = await fromPos([k]);
+      if (p && D[k] === day(k === "date" ? p.t0 : p.t1)) msg = `From the ${p.dir === "long" ? "Long" : "Short"} position.`;
+      else { const dt = await replayDate(); if (dt) D[k] = dt; msg = dt ? "From the replay date. Draw a Long/Short position to use that instead." : "Couldn't read the date, so fill it in yourself."; }
+      keep(); return render(); }
+    if (d.act === "read") { await ask(); if (info.symbol) D.pair = pairOf(info.symbol); const p = await fromPos(["dir", "date", "closeDate"]); if (!p) { const dt = dateOf(info.replay); if (dt) D.date = dt; } msg = p ? `Direction and dates from the ${p.dir === "long" ? "Long" : "Short"} position.` : D.date ? "" : "Couldn't read the replay date, so fill it in yourself."; keep(); return render(); }
     if (d.sec) { collapsed[d.sec] = !collapsed[d.sec]; store({ collapsed }); return render(); }
     if (d.arm) return arm(d.arm);
     if (d.rm) { delete D.links[d.rm]; keep(); return render(); }

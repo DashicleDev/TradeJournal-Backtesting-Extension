@@ -33,6 +33,10 @@ Click the logo. The panel walks you through the trade:
 3. **Daily** (1D), **4H** (240) and, for an Engulfing Candle entry, **1H/2H**: the same. The entry date is on the last of these and is filled from the replay date.
 4. **Result**: fill it in and **Save trade**. It starts again at step 1 with the pair kept.
 
+**Long / Short Position tool:** draw it at the entry candle and stretch its right edge to the candle where the trade closed.
+The panel takes direction, entry date and close date from it (the selected one, otherwise the newest one not used yet).
+It only fills empty fields, so you can still change the dates; **⟳ from chart** reads them again.
+
 **Back** or the step tabs go to an earlier step (the chart switches back too).
 **☰** shows all fields on one page instead.
 
