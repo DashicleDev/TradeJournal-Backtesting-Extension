@@ -190,8 +190,11 @@
         sPhase: D.sPhase || "", s6bm: D.sPhase === "A" ? D.s6bm || "" : "", s6ret: D.sPhase === "B" ? D.s6ret || "" : "", swPat: D.swPat || "",
         s3bm: !!D.s3bm, s3room: !!D.s3room, s3roomB: !!D.s3roomB, s1room: !!D.s1room, s1cc: !!D.s1cc,
         s12Ms: D.s12Ms || "", s12bm: D.s12Ms === "for" ? D.s12bm || "" : "", s12ret: D.s12Ms === "against" ? D.s12ret || "" : "", s6Ms: D.s6Ms || "", s3Ms: D.s3Ms || "", s1Ms: D.s1Ms || "", swMs: D.swMs || "",
-        sEntry: num(D.sEntry), sStop: num(D.sStop), notes: (D.notes || "").trim(), sCur: LIVE() ? D.sCur || "USD" : "USD", sFx: null, sShares: LIVE() ? num(D.sShares) : null, sExits: [],
-        shotLinks: Object.fromEntries(["m12", "m6", "m3", "mo", "wk"].filter((k) => D.links[k]).map((k) => [k, D.links[k]])), r: null, pnl: null, retPct: null, outcome: "",
+        sEntry: num(D.sEntry), sStop: num(D.sStop), notes: (D.notes || "").trim(), sCur: LIVE() ? D.sCur || "USD" : "USD", sFx: null, sShares: LIVE() ? num(D.sShares) : 1,
+        // backtest: a notional position of 1, so the journal can work out R and % (exits are % of it)
+        sExits: !LIVE() && num(D.sExit) ? [{ shares: 1, price: num(D.sExit), date: D.sExitDate || D.date || "", hows: [], how: "" }] : [],
+        shotLinks: Object.fromEntries(["m12", "m6", "m3", "mo", "wk"].filter((k) => D.links[k]).map((k) => [k, D.links[k]])),
+        ...(() => { const x = !LIVE() && num(D.sExit) ? sRes() : null; return x ? { r: x.r != null ? +x.r.toFixed(2) : null, pnl: null, retPct: +x.ret.toFixed(2), outcome: x.ret > 0 ? "win" : x.ret < 0 ? "loss" : "be", closeDate: D.sExitDate || D.date || "" } : { r: null, pnl: null, retPct: null, outcome: "" }; })(),
         created: Date.now(), source: "tradingview-extension" }; }
     const weekly = { ...D.w };
     if (D.ms) weekly.ms = D.ms; if (D.trend) weekly.trend = D.trend; if (D.wPat) weekly.pattern = "for";
@@ -209,6 +212,9 @@
   const ctxSel = () => LIVE()
     ? f("Account", `<select data-k="account"><option value="">No account</option>${accounts.filter((a) => (a.market || "fx") === mkt).map((a) => `<option value="${esc(a.name)}" ${a.name === D.account ? "selected" : ""}>${esc(a.name)}${(a.status || (a.archived ? "closed" : "active")) !== "active" ? " (" + esc(a.status || "closed") + ")" : ""}</option>`).join("")}${D.account && !accounts.some((a) => a.name === D.account && (a.market || "fx") === mkt) ? `<option selected value="${esc(D.account)}">${esc(D.account)}</option>` : ""}</select>`)
     : f("Project", `<select data-k="project"><option value="">No project</option>${projects.filter((p) => (p.market || "fx") === mkt).map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`);
+  const sRes = () => { const en = +D.sEntry, sl = +D.sStop, ex = +D.sExit; if (!en || !ex) return null; const risk = en > sl && sl ? en - sl : 0;
+    return { r: risk ? (ex - en) / risk : null, ret: (ex - en) / en * 100 }; };
+  const sResText = () => { const x = sRes(); if (!x) return "—"; const sg = (v) => (v > 0 ? "+" : "") + v.toFixed(2); return (x.r != null ? sg(x.r) + "R · " : "") + sg(x.ret) + "%"; };
   const missing = () => INV() ? [!D.pair && "ticker", !D.date && "date"].filter(Boolean) : [!D.pair && "pair", !D.date && "date", !D.dir && "direction"].filter(Boolean);
   async function save() {
     const miss = missing(); if (miss.length) { msg = "Still needed: " + miss.join(", ") + (view === "steps" && !D.date ? ` (on the ${steps().find((x) => x[0] === dateStep())[1]} step)` : "") + "."; return render(); }
@@ -269,8 +275,10 @@
       // backtest: no shares bought or currency, just where you'd enter and stop
       exec: () => `${LIVE() ? f("Currency", seg("sCur", [["USD", "USD"], ["EUR", "EUR"], ["GBP", "GBP"], ["CAD", "CAD"], ["CHF", "CHF"]], D.sCur || "USD")) : ""}
         <div class="${LIVE() ? "row3" : "row2"}">${LIVE() ? f("Shares bought", `<input type="number" step="any" min="0" data-k="sShares" value="${esc(D.sShares)}">`) : ""}${f("Entry", `<input type="number" step="any" data-k="sEntry" value="${esc(D.sEntry)}">`)}${f("Initial stop", `<input type="number" step="any" data-k="sStop" value="${esc(D.sStop)}">`)}</div>
+        ${LIVE() ? "" : `<div class="row2">${f("Exit price <em>optional</em>", `<input type="number" step="any" data-k="sExit" value="${esc(D.sExit)}">`)}${f("Exit date", `<input type="date" data-k="sExitDate" value="${esc(D.sExitDate)}">`)}</div>
+          <p class="hint">Result <b data-sres>${esc(sResText())}</b></p>`}
         ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}
-        <p class="hint">${LIVE() ? "Exits and the rate are added in the journal when you sell." : "Exits are added in the journal."}</p>` };
+        <p class="hint">${LIVE() ? "Exits and the rate are added in the journal when you sell." : "Leave the exit empty if the trade is still open, or for partial exits (add those in the journal)."}</p>` };
     const B = INV() ? { ...IB, setup: IB.setup } : { setup: () => `      ${ctxSel()}
       <div class="row2">${f(`Pair <button type="button" class="lnk inl" data-act="read" title="Read pair and replay date from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" list="tjpairs" autocomplete="off"><datalist id="tjpairs">${String((pj && pj.pairs) || "").split(/[\s,]+/).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`)}
         ${view === "steps" ? f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir)) : f("Date", `<input type="date" data-k="date" value="${esc(D.date)}">`)}</div>
@@ -412,7 +420,7 @@
     if (e.target.tagName === "TEXTAREA" || e.target.type === "number" || e.target.type === "date" || k === "pair") { if (k === "pair") { D.pair = pairOf(D.pair); e.target.value = D.pair; } keep(); return; }
     if (k === "wPat") D.wPatSub = ""; if (k === "concept") D.sub = ""; if (k === "entry4h" && !hasStruct(D.entry4h)) { D.struct = ""; D.room = false; } if (k === "pair") D.pair = pairOf(D.pair);
     if (k === "project") store({ lastProject: D.project }); if (k === "account") store({ lastAccount: D.account }); keep(); render(); });
-  root.addEventListener("input", (e) => { const k = e.target.dataset && e.target.dataset.k; if (k && (e.target.tagName === "TEXTAREA" || e.target.type === "number")) { D[k] = e.target.value; keep(); if (k === "slPips" || k === "tpPips") { const r = panel.querySelector("[data-rr]"); if (r) r.textContent = rrText(); } } });
+  root.addEventListener("input", (e) => { const k = e.target.dataset && e.target.dataset.k; if (k && (e.target.tagName === "TEXTAREA" || e.target.type === "number")) { D[k] = e.target.value; keep(); if (k === "slPips" || k === "tpPips") { const r = panel.querySelector("[data-rr]"); if (r) r.textContent = rrText(); } if (k === "sEntry" || k === "sStop" || k === "sExit") { const r = panel.querySelector("[data-sres]"); if (r) r.textContent = sResText(); } } });
   // reorder trigger styles by dragging the grip
   let dragI = null;
   root.addEventListener("dragstart", (e) => { const g = e.target.closest && e.target.closest("[data-grip]"); if (!g) return; dragI = +g.dataset.grip; e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", String(dragI)); e.dataTransfer.setDragImage(g.closest(".tr"), 10, 10); } catch {} g.closest(".tr").classList.add("drag"); });
