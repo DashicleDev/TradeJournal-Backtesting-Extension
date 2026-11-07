@@ -190,7 +190,7 @@
         sPhase: D.sPhase || "", s6bm: D.sPhase === "A" ? D.s6bm || "" : "", s6ret: D.sPhase === "B" ? D.s6ret || "" : "", swPat: D.swPat || "",
         s3bm: !!D.s3bm, s3room: !!D.s3room, s3roomB: !!D.s3roomB, s1room: !!D.s1room, s1cc: !!D.s1cc,
         s12Ms: D.s12Ms || "", s12bm: D.s12Ms === "for" ? D.s12bm || "" : "", s12ret: D.s12Ms === "against" ? D.s12ret || "" : "", s6Ms: D.s6Ms || "", s3Ms: D.s3Ms || "", s1Ms: D.s1Ms || "", swMs: D.swMs || "",
-        sEntry: num(D.sEntry), sStop: num(D.sStop), notes: (D.notes || "").trim(), sCur: D.sCur || "USD", sFx: null, sShares: num(D.sShares), sExits: [],
+        sEntry: num(D.sEntry), sStop: num(D.sStop), notes: (D.notes || "").trim(), sCur: LIVE() ? D.sCur || "USD" : "USD", sFx: null, sShares: LIVE() ? num(D.sShares) : null, sExits: [],
         shotLinks: Object.fromEntries(["m12", "m6", "m3", "mo", "wk"].filter((k) => D.links[k]).map((k) => [k, D.links[k]])), r: null, pnl: null, retPct: null, outcome: "",
         created: Date.now(), source: "tradingview-extension" }; }
     const weekly = { ...D.w };
@@ -266,10 +266,11 @@
       mo: () => `${f("Market structure", ms("s1Ms"))}
         ${D.sPhase ? `<div class="segs">${D.sPhase === "A" ? chk("s1room", "Room") : ""}${chk("s1cc", "Bullish CC")}</div>` : ""}`,
       wk: () => `${f("Market structure", ms("swMs"))}${f("Pattern", seg("swPat", [["BM", "BM"], ["IHS", "IHS"]], D.swPat))}`,
-      exec: () => `${f("Currency", seg("sCur", [["USD", "USD"], ["EUR", "EUR"], ["GBP", "GBP"], ["CAD", "CAD"], ["CHF", "CHF"]], D.sCur || "USD"))}
-        <div class="row3">${f("Shares bought", `<input type="number" step="any" min="0" data-k="sShares" value="${esc(D.sShares)}">`)}${f("Entry", `<input type="number" step="any" data-k="sEntry" value="${esc(D.sEntry)}">`)}${f("Initial stop", `<input type="number" step="any" data-k="sStop" value="${esc(D.sStop)}">`)}</div>
+      // backtest: no shares bought or currency, just where you'd enter and stop
+      exec: () => `${LIVE() ? f("Currency", seg("sCur", [["USD", "USD"], ["EUR", "EUR"], ["GBP", "GBP"], ["CAD", "CAD"], ["CHF", "CHF"]], D.sCur || "USD")) : ""}
+        <div class="${LIVE() ? "row3" : "row2"}">${LIVE() ? f("Shares bought", `<input type="number" step="any" min="0" data-k="sShares" value="${esc(D.sShares)}">`) : ""}${f("Entry", `<input type="number" step="any" data-k="sEntry" value="${esc(D.sEntry)}">`)}${f("Initial stop", `<input type="number" step="any" data-k="sStop" value="${esc(D.sStop)}">`)}</div>
         ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}
-        <p class="hint">Exits and the rate are added in the journal when you sell.</p>` };
+        <p class="hint">${LIVE() ? "Exits and the rate are added in the journal when you sell." : "Exits are added in the journal."}</p>` };
     const B = INV() ? { ...IB, setup: IB.setup } : { setup: () => `      ${ctxSel()}
       <div class="row2">${f(`Pair <button type="button" class="lnk inl" data-act="read" title="Read pair and replay date from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" list="tjpairs" autocomplete="off"><datalist id="tjpairs">${String((pj && pj.pairs) || "").split(/[\s,]+/).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`)}
         ${view === "steps" ? f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir)) : f("Date", `<input type="date" data-k="date" value="${esc(D.date)}">`)}</div>
