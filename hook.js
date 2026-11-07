@@ -144,8 +144,15 @@
     const aOn = () => { const b = aBtn(); return !!b && [...b.classList].some((c) => /^priceScaleModeButton_activated/.test(c)); };
     const autoWasOff = !!aBtn() && !aOn(); if (autoWasOff) aBtn().click();
     try {
-      const ch = chartApi(), rp = await window.TradingViewApi.replayApi();
+      const ch = chartApi(), rp = await (window.__tjRp || (window.__tjRp = window.TradingViewApi.replayApi()));
       if (!rp.isReplayStarted().value()) return say({ done: true, why: "Start bar replay first." });
+      // wait until the chart has its candles (right after a timeframe switch it is still loading)
+      const want = e.data.res ? String(e.data.res).toUpperCase().replace(/^1(?=[DWM]$)/, "") : "";
+      const resOk = () => { try { return !want || String(ch.resolution()).toUpperCase().replace(/^1(?=[DWM]$)/, "") === want; } catch { return true; } };
+      const loaded = () => { try { const b = barsOf(); return resOk() && b && (b.size ? b.size() : b.lastIndex() + 1) >= 1 && !!lastBar(); } catch { return false; } };
+      for (let i = 0; i < 300 && !loaded(); i++) await new Promise((r) => setTimeout(r, 30));
+      if (!loaded()) return say({ done: true, why: "The chart is still loading. Try again in a moment." });
+      if (e.data.res) { let k = (lastBar() || []).join(), same = 0; for (let i = 0; i < 40 && same < 3; i++) { await new Promise((r) => setTimeout(r, 30)); const n = (lastBar() || []).join(); if (n === k) same++; else { same = 0; k = n; } } }
       const specs = (e.data.specs || []).map((t) => ({ ls: looseSig(t.sig), tx: normT(t.text), i: t.i })), max = e.data.max || 300;
       const sigs = specs; // (kept for the messages below)
       const specOf = (s) => { if (!specs.length) return { i: -1 }; const ls = looseSig(styleOf(ch, s)), tx = normT(textOf(ch, s)); return specs.find((t) => t.ls === ls && t.tx === tx) || null; };

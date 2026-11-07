@@ -319,8 +319,7 @@
     if ((d.act === "skip1d" || d.act === "skip1w" || d.act === "fwd") && trig.length && !onSigs().length) { msg = "All your styles are off. Turn at least one on."; return render(); }
     if (d.act === "skip1d" || d.act === "skip1w") { const days = d.act === "skip1d" ? 1 : 7; fwd = { n: 0 }; msg = ""; render();
       const ok = await setTf("240"); skipBack = ok === true ? tfPrev : ""; if (!ok) { fwd = null; msg = "Switch the chart to 4H yourself, then try again."; return render(); }
-      if (ok !== "same") await new Promise((r) => setTimeout(r, 600));
-      window.postMessage({ __tj: "fwd", specs: onSigs(), max: 300, until: days === 1 ? "D" : "W" }, location.origin); return; }
+      window.postMessage({ __tj: "fwd", specs: onSigs(), max: 300, until: days === 1 ? "D" : "W", res: "240" }, location.origin); return; }
     if (d.act === "fwdstop") { window.postMessage({ __tj: "fwdstop" }, location.origin); return; }
     if (d.act === "trigadd") { window.postMessage({ __tj: "sig" }, location.origin); return; }
     if (d.tgtrig != null) { const k = +d.tgtrig; if (trig[k]) { trig[k] = { ...trig[k], on: trig[k].on === false }; saveSet({ trig }); } return render(); }
