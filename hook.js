@@ -129,7 +129,7 @@
     if (e.data.__tj === "fwdstop") { fwdStop = true; return; }
     if (e.data.__tj === "sig") { // style of the selected line / rectangle, to use as a trigger
       let r = { err: "Select a horizontal line or rectangle on the chart first." };
-      try { const ch = chartApi(), sel = ch.selection().allSources() || [], s = ch.getAllShapes().find((x) => sel.includes(x.id) && LEVELS.test(x.name)); if (s) { const sig = styleOf(ch, s); r = { sig, name: s.name, color: swatch(sig) }; } } catch {}
+      try { const ch = chartApi(), sel = ch.selection().allSources() || [], s = ch.getAllShapes().find((x) => sel.includes(x.id) && LEVELS.test(x.name)); if (s) { const sig = styleOf(ch, s); let text = ""; try { const pr = ch.getShapeById(s.id).getProperties() || {}; text = String(pr.text || (pr.label && pr.label.text) || "").trim(); } catch {} r = { sig, name: s.name, color: swatch(sig), text }; } } catch {}
       return window.postMessage({ __tj: "sigok", ...r }, location.origin);
     }
     if (e.data.__tj !== "fwd") return;
@@ -138,7 +138,7 @@
       const ch = chartApi(), rp = await window.TradingViewApi.replayApi();
       if (!rp.isReplayStarted().value()) return say({ done: true, why: "Start bar replay first." });
       const sigs = e.data.sigs || [], max = e.data.max || 300;
-      const pick = () => ch.getAllShapes().filter((s) => LEVELS.test(s.name) && (!sigs.length || sigs.includes(styleOf(ch, s)))).map((s) => levelsOf(ch, s)).filter(Boolean);
+      const pick = () => ch.getAllShapes().filter((s) => LEVELS.test(s.name) && (!sigs.length || sigs.includes(styleOf(ch, s)))).map((s) => { const L = levelsOf(ch, s); if (L) L.sig = styleOf(ch, s); return L; }).filter(Boolean);
       const touches = (b, L) => b[3] <= L.hi + 1e-9 && b[2] >= L.lo - 1e-9; // bar = [time, open, high, low, close]
       let bar = lastBar(); if (!bar) return say({ done: true, why: "Couldn't read the candles." });
       // drawings the current candle already touches don't count
@@ -157,13 +157,13 @@
         // check the new candle and the one before it (with its final high / low)
         const pb = prevBar(), cands = [pb, bar].filter((b) => b && b[0] > start);
         const hit = watch.find((L) => cands.some((b) => (!isFinite(L.t0) || L.t0 <= b[0]) && touches(b, L)));
-        if (hit) return say({ done: true, hit: true, n, why: `Price hit the ${hit.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
+        if (hit) return say({ done: true, hit: true, n, sig: (hit || {}).sig, why: `Price hit the ${hit.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
         if (until && bar[0] + 14400 >= until) {
           // last candle before the close: let it fill in, then check it properly
           for (let i = 0; i < 100 && bar[2] === bar[3]; i++) { await sleep(20); const b = lastBar(); if (b && b[0] === bar[0]) bar = b; }
           await sleep(120); { const b = lastBar(); if (b && b[0] === bar[0]) bar = b; }
           const h2 = watch.find((L) => (!isFinite(L.t0) || L.t0 <= bar[0]) && touches(bar, L));
-          if (h2) return say({ done: true, hit: true, n, why: `Price hit the ${h2.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` }); }
+          if (h2) return say({ done: true, hit: true, n, sig: h2.sig, why: `Price hit the ${h2.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` }); }
         if (until && bar[0] + 14400 >= until) return say({ done: true, why: `No hit before the ${e.data.until === "W" ? "weekly" : "daily"} close (${n} candle${n === 1 ? "" : "s"}).` });
         if (maxSec && bar[0] - start >= maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"} (${n} candles).` });
       }
