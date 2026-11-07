@@ -107,7 +107,7 @@
   const barsOf = () => { try { return window.TradingViewApi._activeChartWidgetWV.value().chartModel().mainSeries().bars(); } catch { return null; } };
   const lastBar = () => { const b = barsOf(), l = b && b.last(); return l && l.value ? l.value.slice() : null; };
   const prevBar = () => { try { const b = barsOf(), v = b.valueAt(b.lastIndex() - 1); return v ? v.slice() : null; } catch { return null; } };
-  const LEVELS = /^(horizontal_line|horizontal_ray|rectangle)$/;
+  const LEVELS = /horizontal|horz|rectangle/i; // horizontal line, horizontal ray, rectangle
   // a drawing's style: its tool plus every colour / width / line style it has (a template always gives the same)
   const styleOf = (ch, s) => {
     let props = {}; try { props = ch.getShapeById(s.id).getProperties() || {}; } catch {}
@@ -118,11 +118,11 @@
   };
   const rgb = (v) => { const s = String(v).trim().toLowerCase(); let m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/.exec(s); if (m) return [0, 2, 4].map((i) => parseInt(m[1].substr(i, 2), 16)).join(",");
     m = /^#([0-9a-f]{3})$/.exec(s); if (m) return [...m[1]].map((c) => parseInt(c + c, 16)).join(","); m = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/.exec(s); return m ? [m[1], m[2], m[3]].map(Number).join(",") : ""; };
-  const looseSig = (sig) => { const i = sig.indexOf("|"); let kv = []; try { kv = JSON.parse(sig.slice(i + 1)); } catch {} return sig.slice(0, i).replace("horizontal_ray", "horizontal_line") + "|" + [...new Set(kv.filter(([k]) => /color$/i.test(k)).map(([, v]) => rgb(v)).filter(Boolean))].sort().join(" "); };
+  const looseSig = (sig) => { const i = sig.indexOf("|"); let kv = []; try { kv = JSON.parse(sig.slice(i + 1)); } catch {} return (/rect/i.test(sig.slice(0, i)) ? "rectangle" : "horizontal") + "|" + [...new Set(kv.filter(([k]) => /color$/i.test(k)).map(([, v]) => rgb(v)).filter(Boolean))].sort().join(" "); };
   const textOf = (ch, s) => { try { const pr = ch.getShapeById(s.id).getProperties() || {}; return String(pr.text || (pr.label && pr.label.text) || "").trim(); } catch { return ""; } };
   const normT = (t) => String(t || "").trim().replace(/\s+/g, " ").toLowerCase();
   const swatch = (sig) => { const m = /"(#[0-9a-fA-F]{6,8}|rgba?\([^"]+\))"/.exec(sig); return m ? m[1] : ""; };
-  const levelsOf = (ch, s) => { try { const pts = ch.getShapeById(s.id).getPoints() || []; const ps = pts.map((p) => p.price).filter((x) => typeof x === "number");
+  const levelsOf = (ch, s) => { try { /* name kept for the messages */ const pts = ch.getShapeById(s.id).getPoints() || []; const ps = pts.map((p) => p.price).filter((x) => typeof x === "number");
     if (!ps.length) return null; return { lo: Math.min(...ps), hi: Math.max(...ps), t0: Math.min(...pts.map((p) => p.time || Infinity)), name: s.name }; } catch { return null; } };
   // next daily / weekly candle close (forex: 17:00 New York; weekly = Friday) strictly after time t (seconds)
   const nyParts = (t) => { const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(new Date(t * 1000)); const g = (k) => (p.find((x) => x.type === k) || {}).value; return { wd: g("weekday"), h: +g("hour"), m: +g("minute") }; };
@@ -163,6 +163,7 @@
       let watch = pick().filter((L) => !touches(bar, L));
       if (!watch.length) {
         let why = sigs.length ? "No lines or rectangles in your trigger styles ahead of price." : "No horizontal lines or rectangles ahead of price.";
+        if (!ch.getAllShapes().some((s) => LEVELS.test(s.name))) { const names = [...new Set(ch.getAllShapes().map((s) => s.name))]; why += names.length ? " Drawings on the chart: " + names.join(", ") + "." : " There are no drawings on this chart."; }
         if (specs.length) { // say what differs for the drawings that are on the chart
           const tool = (ls) => ls.split("|")[0], cols = (ls) => ls.split("|")[1];
           const notes = ch.getAllShapes().filter((s) => LEVELS.test(s.name)).slice(0, 6).map((s) => {
@@ -189,7 +190,7 @@
           if (!upd) { idle++; continue; } idle = 0;
           if (upd[0] !== t) { nb = upd; break; }
           const sub = watch.find((L) => (!isFinite(L.t0) || L.t0 <= upd[0]) && touches(upd, L));
-          if (sub) return say({ done: true, hit: true, n, ti: sub.ti, why: `Price hit the ${sub.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
+          if (sub) return say({ done: true, hit: true, n, ti: sub.ti, why: `Price hit the ${/rect/i.test(sub.name) ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
         }
         if (!nb) return say({ done: true, why: `No new candle came in (after ${n - 1}). Is the replay at the end?` });
         bar = nb; say({ n });
@@ -197,13 +198,13 @@
         // check the new candle and the one before it (with its final high / low)
         const pb = prevBar(), cands = [pb, bar].filter((b) => b && b[0] > start);
         const hit = watch.find((L) => cands.some((b) => (!isFinite(L.t0) || L.t0 <= b[0]) && touches(b, L)));
-        if (hit) return say({ done: true, hit: true, n, ti: (hit || {}).ti, why: `Price hit the ${hit.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
+        if (hit) return say({ done: true, hit: true, n, ti: (hit || {}).ti, why: `Price hit the ${/rect/i.test(hit.name) ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
         if (until && bar[0] + 14400 >= until) {
           // last candle before the close: let it fill in, then check it properly
           for (let i = 0; i < 100 && bar[2] === bar[3]; i++) { await sleep(20); const b = lastBar(); if (b && b[0] === bar[0]) bar = b; }
           await sleep(120); { const b = lastBar(); if (b && b[0] === bar[0]) bar = b; }
           const h2 = watch.find((L) => (!isFinite(L.t0) || L.t0 <= bar[0]) && touches(bar, L));
-          if (h2) return say({ done: true, hit: true, n, ti: h2.ti, why: `Price hit the ${h2.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` }); }
+          if (h2) return say({ done: true, hit: true, n, ti: h2.ti, why: `Price hit the ${/rect/i.test(h2.name) ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` }); }
         if (until && bar[0] + 14400 >= until) return say({ done: true, why: `No hit before the ${e.data.until === "W" ? "weekly" : "daily"} close (${n} candle${n === 1 ? "" : "s"}).` });
         if (maxSec && bar[0] - start >= maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"} (${n} candles).` });
       }
