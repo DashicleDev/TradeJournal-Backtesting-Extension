@@ -42,6 +42,11 @@ It only fills empty fields, so you can still change the dates; **⟳ from chart*
 **Back** or the step tabs go to an earlier step (the chart switches back too).
 **☰** shows all fields on one page instead.
 
+## Settings (⚙)
+
+- **Fit chart after switching timeframe**: turns Auto (price scale) on and off after the panel switches timeframe.
+- **Same look as my journal**: uses the theme and accent colour from your journal. Untick it to pick your own.
+
 ## Privacy
 
 - Runs only on `tradingview.com/chart`.

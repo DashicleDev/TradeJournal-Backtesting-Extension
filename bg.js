@@ -53,6 +53,7 @@ const handlers = {
       .filter((p) => (p.market || "fx") === "fx" && !p.demo)
       .sort((a, b) => (a.status === "closed") - (b.status === "closed") || (b.created || 0) - (a.created || 0));
   },
+  async jsettings() { const rows = await rest("docs?select=data&id=eq.settings"); return (rows[0] && rows[0].data) || null; },
   async save({ doc }) {
     const s = await session();
     if (!s) throw new Error("Not signed in");

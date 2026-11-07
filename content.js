@@ -15,9 +15,23 @@
   const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "" });
   let autoFit = true, settings = false, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
 
+  /* ---------- look (same themes and accents as the journal) ---------- */
+  const THEMES = {
+    light: { bg: "#ffffff", in: "#f2f3f8", ink: "#141a2e", mut: "#5a6283", line: "#dcdfeb", soft: "#eceef6", good: "#1d8657", bad: "#c3342b" },
+    dark: { bg: "#161a2d", in: "#0e1120", ink: "#e6e8f3", mut: "#9299b8", line: "#283050", soft: "#1d2238", good: "#43c088", bad: "#f06c60" },
+    black: { bg: "#0c0c0e", in: "#000000", ink: "#ececef", mut: "#8d8d96", line: "#24242a", soft: "#151518", good: "#43c088", bad: "#f06c60" } };
+  const ACCENTS = [["blue", "Blue", "#2230d6", "#8590ff"], ["violet", "Violet", "#6b3fd4", "#a98bff"], ["teal", "Teal", "#0f7f86", "#45c4c9"], ["green", "Green", "#1f7a46", "#5cc98a"], ["rose", "Rose", "#b8326a", "#f07aa8"], ["slate", "Slate", "#3b4664", "#a3acc6"]];
+  let look = { match: true, theme: "dark", accent: "blue" }, jLook = null;
+  function applyLook() {
+    const L = look.match && jLook ? jLook : look, th = L.theme === "system" ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : (THEMES[L.theme] ? L.theme : "dark");
+    const a = ACCENTS.find((x) => x[0] === L.accent) || ACCENTS[0], v = { ...THEMES[th], acc: th === "light" ? a[2] : a[3] };
+    Object.entries(v).forEach(([k, c]) => panel.style.setProperty("--" + k, c)); panel.style.colorScheme = th === "light" ? "light" : "dark";
+  }
+  async function loadJLook() { try { const st = await call("jsettings"); if (st) { jLook = { theme: st.theme || "system", accent: st.accent || "blue" }; store({ jLook }); } } catch {} applyLook(); }
+
   /* ---------- storage ---------- */
   const store = (o) => chrome.storage.local.set(o);
-  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step", "logging", "autoFit"]); mini = !!o.mini; autoFit = o.autoFit !== false; logging = !!o.logging; view = o.view || "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
+  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step", "logging", "autoFit", "look", "jLook"]); mini = !!o.mini; if (o.look) look = { ...look, ...o.look }; if (o.jLook) jLook = o.jLook; autoFit = o.autoFit !== false; logging = !!o.logging; view = o.view || "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
   let saveT; const keep = () => { clearTimeout(saveT); saveT = setTimeout(() => store({ draft: D }), 250); };
 
   /* ---------- shell ---------- */
@@ -27,6 +41,7 @@
   root.innerHTML = `<style>${CSS()}</style><button class="pill" title="Trade Journal (drag to move)"><img src="${chrome.runtime.getURL("icons/icon-128.png")}" alt="Trade Journal" draggable="false"></button><section class="panel" hidden></section>`;
   const panel = root.querySelector(".panel"), pill = root.querySelector(".pill");
   document.documentElement.appendChild(host);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => applyLook());
 
   // the logo button: click opens the panel, drag moves it (position is remembered)
   let pd = null;
@@ -211,8 +226,12 @@
       ltf: () => `<p class="hint">Find the reversal on the ${curStep()[1]}, then continue to grab the chart.</p>` };
     const HEAD = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">Backtest</span><button type="button" class="x" data-act="view" title="${view === "steps" ? "Show all fields" : "Step by step"}">${view === "steps" ? "☰" : "▶"}</button><button type="button" class="x x2" data-act="settings" title="Settings">⚙</button><button type="button" class="x x2" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x x2" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`;
     if (settings) {
-      panel.innerHTML = `${HEAD}<div class="body idle"><b class="ttl">Settings</b>
+      panel.innerHTML = `${HEAD}<div class="body idle"><b class="ttl">Chart</b>
         <label class="chk"><input type="checkbox" data-set="autoFit" ${autoFit ? "checked" : ""}><span>Fit chart after switching timeframe<small>Turns Auto (price scale) on and off, so the chart fits the screen.</small></span></label>
+        <b class="ttl">Look</b>
+        <label class="chk"><input type="checkbox" data-set="match" ${look.match ? "checked" : ""}><span>Same look as my journal<small>Uses the theme and accent colour from your journal's settings.</small></span></label>
+        ${look.match ? "" : `${f("Theme", `<div class="segs">${[["system", "System"], ["light", "Light"], ["dark", "Dark"], ["black", "Black"]].map(([k, l]) => `<button type="button" class="sg${look.theme === k ? " on" : ""}" data-look="theme" data-v="${k}">${l}</button>`).join("")}</div>`)}
+        ${f("Accent colour", `<div class="sw">${ACCENTS.map(([k, l, c1, c2]) => `<button type="button" class="swb${look.accent === k ? " on" : ""}" data-look="accent" data-v="${k}" title="${l}" aria-label="${l}" style="background:${c2}"></button>`).join("")}</div>`)}`}
         <p class="hint">Signed in as ${esc(user.email)} · version ${esc(chrome.runtime.getManifest().version)}</p>
       </div><div class="foot"><div class="fb"><button type="button" class="btn ghost" data-act="settings">Back</button><span class="sp"></span><button type="button" class="lnk" data-act="logout">Sign out</button></div></div>`;
     } else if (view === "steps" && !logging) {
@@ -275,6 +294,7 @@
     if (d.act === "discard") { const pj = D.project, pr = D.pair; D = { ...blank(), project: pj, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
     if (d.act === "posshow") { showPos(curPos()); return; }
     if (d.act === "posrefresh") { const p = await fromPos(["dir", "date", "closeDate"]); msg = p ? "" : posWhy; return render(); }
+    if (d.look) { look[d.look] = d.v; store({ look }); applyLook(); return render(); }
     if (d.act === "settings") { settings = !settings; msg = ""; return render(); }
     if (d.act === "next") return next();
     if (d.act === "back") return goStep(step - 1);
@@ -302,6 +322,7 @@
       if (d.k === "outcome" && d.v === "be" && D.r === "") D.r = "0"; keep(); return render(); }
   });
   root.addEventListener("change", async (e) => { if (e.target.dataset && e.target.dataset.set === "autoFit") { autoFit = e.target.checked; store({ autoFit }); return; }
+    if (e.target.dataset && e.target.dataset.set === "match") { look.match = e.target.checked; if (!look.match && jLook) look = { ...look, theme: jLook.theme, accent: jLook.accent }; store({ look }); if (look.match) loadJLook(); else applyLook(); return render(); }
     const k = e.target.dataset && e.target.dataset.k; if (!k) return;
     if (k === "posPick") { D.posPick = e.target.value; const p = await fromPos(["dir", "date", "closeDate"]); showPos(p); msg = p ? "" : posWhy; return render(); }
     D[k] = e.target.value;
@@ -318,9 +339,10 @@
     try { const p = await call("plan"); if (p && p.plan && p.wcrit) P = p; } catch {}
     try { projects = await call("projects"); } catch (e) { msg = "Couldn't load projects: " + e.message; }
     if (D.project && !projects.some((p) => p.id === D.project)) D.project = "";
+    loadJLook();
   }
   (async () => {
-    const pos = await load(); if (pos && pos.left) Object.assign(host.style, { left: pos.left, top: pos.top, right: "auto" });
+    const pos = await load(); applyLook(); if (pos && pos.left) Object.assign(host.style, { left: pos.left, top: pos.top, right: "auto" });
     try { user = await call("status"); } catch {}
     if (user) await boot();
     panel.hidden = !open; pill.hidden = open; render();
@@ -331,45 +353,45 @@
   *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
   .pill{position:fixed;right:16px;bottom:80px;width:46px;height:46px;border-radius:12px;border:0;padding:0;background:none;cursor:grab;box-shadow:0 6px 20px rgba(0,0,0,.4);touch-action:none;overflow:hidden}.pill:active{cursor:grabbing}.pill img{width:100%;height:100%;display:block;pointer-events:none;user-select:none}
   [hidden]{display:none!important}
-  .panel{width:360px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;background:#121624;color:#e8ebf5;border:1px solid #2a3046;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.45);font-size:13px;overflow:hidden}
-  .head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #2a3046;cursor:move;user-select:none}
-  .head b{font-size:14px}.who{font-size:11px;color:#8d94ad;text-transform:uppercase;letter-spacing:.05em}.x{margin-left:auto;background:none;border:0;color:#8d94ad;font-size:18px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px}.x:hover{background:#222a40;color:#e8ebf5}.x2{margin-left:0}.panel.mini{width:auto;min-width:220px}.panel.mini .head{border-bottom:0}
+  .panel{--bg:#161a2d;--in:#0e1120;--ink:#e6e8f3;--mut:#9299b8;--line:#283050;--soft:#1d2238;--good:#43c088;--bad:#f06c60;--acc:#8590ff;width:360px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.45);font-size:13px;overflow:hidden}
+  .head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);cursor:move;user-select:none}
+  .head b{font-size:14px}.who{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}.x{margin-left:auto;background:none;border:0;color:var(--mut);font-size:18px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px}.x:hover{background:var(--soft);color:var(--ink)}.x2{margin-left:0}.panel.mini{width:auto;min-width:220px}.panel.mini .head{border-bottom:0}
   .body{overflow-y:auto;overflow-x:hidden;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
-  .login{display:grid;gap:10px}.login p{margin:0;color:#aab0c6;line-height:1.45}
-  .f{display:grid;gap:4px;min-width:0}.f>span{font-size:11px;font-weight:600;color:#8d94ad}.f>span em{font-weight:400;font-style:normal;opacity:.8;margin-left:4px}
+  .login{display:grid;gap:10px}.login p{margin:0;color:var(--mut);line-height:1.45}
+  .f{display:grid;gap:4px;min-width:0}.f>span{font-size:11px;font-weight:600;color:var(--mut)}.f>span em{font-weight:400;font-style:normal;opacity:.8;margin-left:4px}
   .row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:start}.row3{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end}
-  input,select,textarea{width:100%;font-size:13px;color:#e8ebf5;background:#0b0e17;border:1px solid #2a3046;border-radius:7px;padding:6px 8px;outline:none}
-  input:focus,select:focus,textarea:focus{border-color:#7c8cff}textarea{resize:vertical}
+  input,select,textarea{width:100%;font-size:13px;color:var(--ink);background:var(--in);border:1px solid var(--line);border-radius:7px;padding:6px 8px;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--acc)}textarea{resize:vertical}
   .segs{display:flex;flex-wrap:wrap;gap:4px}
-  .sg{border:1px solid #2a3046;background:#0b0e17;color:#e8ebf5;border-radius:7px;padding:5px 9px;font-size:12.5px;cursor:pointer}
-  .sg.on{background:#3bbd85;border-color:#3bbd85;color:#fff}.sg.on.neg{background:#e5534b;border-color:#e5534b}
-  .sec{border:1px solid #2a3046;border-radius:9px}
-  .sh{width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;color:#e8ebf5;padding:8px 10px;cursor:pointer;text-align:left}
-  .sh b{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:#aab0c6}.sh em{font-style:normal;color:#e8ebf5;font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sh i{font-style:normal;color:#8d94ad}
+  .sg{border:1px solid var(--line);background:var(--in);color:var(--ink);border-radius:7px;padding:5px 9px;font-size:12.5px;cursor:pointer}
+  .sg.on{background:var(--good);border-color:var(--good);color:#fff}.sg.on.neg{background:var(--bad);border-color:var(--bad)}
+  .sec{border:1px solid var(--line);border-radius:9px}
+  .sh{width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;color:var(--ink);padding:8px 10px;cursor:pointer;text-align:left}
+  .sh b{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}.sh em{font-style:normal;color:var(--ink);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sh i{font-style:normal;color:var(--mut)}
   .sec{min-width:0}.sb{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;padding:2px 10px 10px}
   .chips{display:flex;flex-wrap:wrap;gap:4px}
-  .ms{position:relative}.msbox{min-height:34px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:4px 22px 4px 5px;border:1px solid #2a3046;border-radius:7px;background:#0b0e17;cursor:pointer;position:relative}
-  .msbox i{position:absolute;right:7px;top:50%;transform:translateY(-50%);font-style:normal;color:#8d94ad;font-size:11px}.msph{color:#8d94ad;font-size:12.5px;padding:2px 3px}
-  .mchip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 3px 2px 7px;font-size:12px}.mchip.for{background:rgba(59,189,133,.18);color:#7fe0b4}.mchip.against{background:rgba(229,83,75,.16);color:#ff9a93}
+  .ms{position:relative}.msbox{min-height:34px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:4px 22px 4px 5px;border:1px solid var(--line);border-radius:7px;background:var(--in);cursor:pointer;position:relative}
+  .msbox i{position:absolute;right:7px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--mut);font-size:11px}.msph{color:var(--mut);font-size:12.5px;padding:2px 3px}
+  .mchip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 3px 2px 7px;font-size:12px}.mchip.for{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}.mchip.against{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
   .mchip button{background:none;border:0;color:inherit;cursor:pointer;font-size:13px;line-height:1;padding:0 3px}
-  .mslist{margin-top:3px;background:#161b2b;border:1px solid #2a3046;border-radius:8px;padding:4px;display:grid;box-shadow:0 10px 30px rgba(0,0,0,.4);max-height:220px;overflow:auto}
-  .mslist button{background:none;border:0;color:#e8ebf5;text-align:left;padding:7px 9px;border-radius:6px;font-size:13px;cursor:pointer}.mslist button:hover{background:#222a40}
-  .chip{border:1px solid #2a3046;background:#0b0e17;color:#cfd4e6;border-radius:999px;padding:4px 9px;font-size:12px;cursor:pointer}
-  .chip.for{background:rgba(59,189,133,.18);border-color:#3bbd85;color:#7fe0b4}.chip.against{background:rgba(229,83,75,.16);border-color:#e5534b;color:#ff9a93}
-  .hint{margin:0;color:#8d94ad;font-size:12px;line-height:1.4}
+  .mslist{margin-top:3px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px;display:grid;box-shadow:0 10px 30px rgba(0,0,0,.4);max-height:220px;overflow:auto}
+  .mslist button{background:none;border:0;color:var(--ink);text-align:left;padding:7px 9px;border-radius:6px;font-size:13px;cursor:pointer}.mslist button:hover{background:var(--soft)}
+  .chip{border:1px solid var(--line);background:var(--in);color:var(--ink);border-radius:999px;padding:4px 9px;font-size:12px;cursor:pointer}
+  .chip.for{background:color-mix(in srgb,var(--good) 18%,transparent);border-color:var(--good);color:var(--good)}.chip.against{background:color-mix(in srgb,var(--bad) 16%,transparent);border-color:var(--bad);color:var(--bad)}
+  .hint{margin:0;color:var(--mut);font-size:12px;line-height:1.4}
   .shots{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}.shot{min-width:0}
-  .shot{position:relative;display:grid;gap:5px}.shot img,.shot .ph{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:6px;border:1px solid #2a3046;background:#0b0e17}
-  .shot.armed .ph,.shot.armed img{border-color:#7c8cff;box-shadow:0 0 0 2px rgba(124,140,255,.35)}
+  .shot{position:relative;display:grid;gap:5px}.shot img,.shot .ph{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:6px;border:1px solid var(--line);background:var(--in)}
+  .shot.armed .ph,.shot.armed img{border-color:var(--acc);box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 35%,transparent)}
   .rm{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;cursor:pointer;line-height:1}
-  .btn{border:1px solid #2a3046;background:#1b2133;color:#e8ebf5;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer}
-  .btn.sm{padding:5px 8px;font-size:12px}.btn.pri{background:#7c8cff;border-color:#7c8cff;color:#0b0e17}.btn.ghost{background:none}.btn:disabled{opacity:.6;cursor:default}
-  .foot{border-top:1px solid #2a3046;padding:10px 12px;display:grid;gap:8px}.fb{display:flex;gap:8px;align-items:center}.sp{flex:1}
-  .lnk{background:none;border:0;color:#8d94ad;font-size:12px;cursor:pointer;text-decoration:underline}.lnk.inl{font-size:11px;padding:0;margin-left:6px;color:#9aa6ff;text-decoration:none}
-  .posl{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 9px;border:1px solid #2a3046;border-radius:7px;background:#0b0e17}.posl span{color:#8d94ad;font-weight:600;font-size:11px}.posl b{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.posl .lnk{margin:0}
-  .ttl{font-size:13px}.chk{display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-top:4px}.chk input{width:auto;margin-top:2px;accent-color:#7c8cff}.chk small{display:block;color:#8d94ad;font-size:11.5px;margin-top:2px}
+  .btn{border:1px solid var(--line);background:var(--soft);color:var(--ink);border-radius:8px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer}
+  .btn.sm{padding:5px 8px;font-size:12px}.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}.btn.ghost{background:none}.btn:disabled{opacity:.6;cursor:default}
+  .foot{border-top:1px solid var(--line);padding:10px 12px;display:grid;gap:8px}.fb{display:flex;gap:8px;align-items:center}.sp{flex:1}
+  .lnk{background:none;border:0;color:var(--mut);font-size:12px;cursor:pointer;text-decoration:underline}.lnk.inl{font-size:11px;padding:0;margin-left:6px;color:var(--acc);text-decoration:none}
+  .posl{display:flex;align-items:center;gap:8px;font-size:12px;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--in)}.posl span{color:var(--mut);font-weight:600;font-size:11px}.posl b{font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.posl .lnk{margin:0}
+  .ttl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}.sw{display:flex;gap:8px}.swb{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:inset 0 0 0 2px var(--bg)}.swb.on{border-color:var(--ink)}.chk{display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-top:4px}.chk input{width:auto;margin-top:2px;accent-color:var(--acc)}.chk small{display:block;color:var(--mut);font-size:11.5px;margin-top:2px}
   .btn.big{padding:11px 14px;font-size:14px}.idle{gap:12px}
-  .msg{margin:0;font-size:12px;color:#c8cdf9;line-height:1.4}
-  .stp{display:flex;gap:3px;padding:8px 12px 0}.st{flex:1;min-width:0;border:0;border-bottom:2px solid #2a3046;background:none;color:#8d94ad;font-size:11px;font-weight:600;padding:4px 2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .st.done{color:#7fe0b4;border-color:#3bbd85}.st.on{color:#e8ebf5;border-color:#7c8cff}
-  .shot.cur img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:6px;border:1px solid #2a3046}`; }
+  .msg{margin:0;font-size:12px;color:var(--ink);line-height:1.4}
+  .stp{display:flex;gap:3px;padding:8px 12px 0}.st{flex:1;min-width:0;border:0;border-bottom:2px solid var(--line);background:none;color:var(--mut);font-size:11px;font-weight:600;padding:4px 2px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .st.done{color:var(--good);border-color:var(--good)}.st.on{color:var(--ink);border-color:var(--acc)}
+  .shot.cur img{width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:6px;border:1px solid var(--line)}`; }
 })();
