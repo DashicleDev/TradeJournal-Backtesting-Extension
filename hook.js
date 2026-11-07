@@ -139,6 +139,10 @@
     }
     if (e.data.__tj !== "fwd") return;
     fwdStop = false;
+    // Auto (price scale) on while skipping, so the candles stay in view; back off afterwards if it was off
+    const aBtn = () => { const all = [...document.querySelectorAll('button[aria-label="Toggle auto scale"]')], vis = all.filter((b) => b.offsetParent); return vis.pop() || all.pop() || null; };
+    const aOn = () => { const b = aBtn(); return !!b && [...b.classList].some((c) => /^priceScaleModeButton_activated/.test(c)); };
+    const autoWasOff = !!aBtn() && !aOn(); if (autoWasOff) aBtn().click();
     try {
       const ch = chartApi(), rp = await window.TradingViewApi.replayApi();
       if (!rp.isReplayStarted().value()) return say({ done: true, why: "Start bar replay first." });
@@ -175,7 +179,8 @@
         if (maxSec && bar[0] - start >= maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"} (${n} candles).` });
       }
       say({ done: true, why: `No hit in ${max} candles.` });
-    } catch (err) { say({ done: true, why: "Couldn't forward the replay: " + String((err && err.message) || err) }); }
+    } catch (err) { say({ done: true, why: "Couldn't forward the replay: " + String((err && err.message) || err) });
+    } finally { if (autoWasOff && aOn()) aBtn().click(); }
   });
 
   // The panel asks for the current symbol / interval / replay date; we read what we can.
