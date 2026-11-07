@@ -50,13 +50,13 @@ const handlers = {
   async projects() {
     const rows = await rest("docs?select=id,data&data->>kind=eq.project");
     return rows.map((r) => ({ ...r.data, id: r.id }))
-      .filter((p) => (p.market || "fx") === "fx" && !p.demo)
+      .filter((p) => !p.demo)
       .sort((a, b) => (a.status === "closed") - (b.status === "closed") || (b.created || 0) - (a.created || 0));
   },
   async accounts() {
     const rows = await rest("docs?select=id,data&data->>kind=eq.account");
     const st = (a) => a.status || (a.archived ? "closed" : "active");
-    return rows.map((r) => ({ ...r.data, id: r.id })).filter((a) => (a.market || "fx") === "fx").sort((a, b) => (st(a) === "active" ? 0 : 1) - (st(b) === "active" ? 0 : 1) || String(a.name).localeCompare(String(b.name)));
+    return rows.map((r) => ({ ...r.data, id: r.id })).sort((a, b) => (st(a) === "active" ? 0 : 1) - (st(b) === "active" ? 0 : 1) || String(a.name).localeCompare(String(b.name)));
   },
   async jsettings() { const rows = await rest("docs?select=data&id=eq.settings"); return (rows[0] && rows[0].data) || null; },
   // the extension's own settings, as one document in your journal data (the journal ignores this kind)

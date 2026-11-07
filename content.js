@@ -12,11 +12,11 @@
 
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const tvImg = (id) => id ? `https://s3.tradingview.com/snapshots/${id[0].toLowerCase()}/${id}.png` : "";
-  const SLOTS = [["weekly", "Weekly"], ["daily", "Daily"], ["h4", "4H"], ["ltf", "1H/2H"]];
+  const SLOTS = [["weekly", "Weekly"], ["daily", "Daily"], ["h4", "4H"], ["ltf", "1H/2H"], ["m12", "12M"], ["m6", "6M"], ["m3", "3M"], ["mo", "Monthly"], ["wk", "Weekly"]];
   const hasStruct = (e) => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
   let dd = null, mini = false, lastEmail = "", P = TJ_PLAN_DEFAULT, user = null, projects = [], open = false, armed = null, armTimer = null, msg = "", busy = false;
   const blank = () => ({ project: "", pair: "", date: "", closeDate: "", dir: "", fase: "", wStruct: "", trend: "", ms: "", wRange: false, wPat: "", wPatSub: "", w: {}, concept: "", sub: "", dMs: "", dPros: [], entry4h: "", hMs: "", struct: "", room: false, scaleIn: false, ecTf: "", links: {}, outcome: "", r: "", maxR: "", exit: "", evaluation: "", notes: "", planEntry: "", slPips: "", tpPips: "" });
-  let tmode = "backtest", accounts = [], savedId = "", tfPrev = "", skipBack = "", autoFit = true, settings = false, setTab = "chart", trig = [], fwd = null, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
+  let mkt = "fx", tmode = "backtest", accounts = [], savedId = "", tfPrev = "", skipBack = "", autoFit = true, settings = false, setTab = "chart", trig = [], fwd = null, D = blank(), collapsed = {}, view = "steps", step = 0, logging = false, snapWait = null;
 
   /* ---------- look (same themes and accents as the journal) ---------- */
   const THEMES = {
@@ -43,7 +43,7 @@
 
   /* ---------- storage ---------- */
   const store = (o) => chrome.storage.local.set(o);
-  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step", "logging", "autoFit", "look", "jLook", "trig", "tmode", "lastAccount"]); mini = !!o.mini; tmode = o.tmode === "live" ? "live" : "backtest"; trig = o.trig || []; if (o.look) look = { ...look, ...o.look }; if (o.jLook) jLook = o.jLook; autoFit = o.autoFit !== false; logging = !!o.logging; view = "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.account && o.lastAccount) D.account = o.lastAccount; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
+  const load = async () => { const o = await chrome.storage.local.get(["draft", "pos", "open", "collapsed", "lastProject", "mini", "view", "step", "logging", "autoFit", "look", "jLook", "trig", "tmode", "lastAccount", "mkt"]); mini = !!o.mini; tmode = o.tmode === "live" ? "live" : "backtest"; mkt = o.mkt === "stocks" ? "stocks" : "fx"; trig = o.trig || []; if (o.look) look = { ...look, ...o.look }; if (o.jLook) jLook = o.jLook; autoFit = o.autoFit !== false; logging = !!o.logging; view = "steps"; step = o.step || 0; if (o.draft) D = { ...blank(), ...o.draft }; if (!D.account && o.lastAccount) D.account = o.lastAccount; if (!D.project && o.lastProject) D.project = o.lastProject; collapsed = o.collapsed || {}; open = !!o.open; return o.pos; };
   let saveT; const keep = () => { clearTimeout(saveT); saveT = setTimeout(() => store({ draft: D }), 250); };
 
   /* ---------- shell ---------- */
@@ -79,7 +79,7 @@
   let info = {};
   const ask = () => new Promise((res) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "info") { removeEventListener("message", f); info = e.data; res(info); } }; addEventListener("message", f); window.postMessage({ __tj: "ask" }, location.origin); setTimeout(() => { removeEventListener("message", f); res(info); }, 400); });
   const pairOf = (s) => String(s || "").split(":").pop().replace(/[^A-Za-z0-9]/g, "").toUpperCase();
-  const slotOf = (iv) => { const v = String(iv || "").trim().toLowerCase().replace(/\s/g, ""); if (/^(1?w|1week|week)$/.test(v)) return "weekly"; if (/^(1?d|1day|day)$/.test(v)) return "daily"; if (/^(4h|240)$/.test(v)) return "h4"; if (/^(1h|2h|60|120)$/.test(v)) return "ltf"; return null; };
+  const slotOf = (iv) => { const v = String(iv || "").trim().toLowerCase().replace(/\s/g, ""); if (INV()) { if (/^12m/.test(v)) return "m12"; if (/^6m/.test(v)) return "m6"; if (/^3m/.test(v)) return "m3"; if (/^(1?m|1month)$/.test(v)) return "mo"; if (/^(1?w|1week|week)$/.test(v)) return "wk"; return null; } if (/^(1?w|1week|week)$/.test(v)) return "weekly"; if (/^(1?d|1day|day)$/.test(v)) return "daily"; if (/^(4h|240)$/.test(v)) return "h4"; if (/^(1h|2h|60|120)$/.test(v)) return "ltf"; return null; };
   const MON = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
   const dateOf = (t) => { if (!t) return ""; let m = /(\d{4})-(\d{2})-(\d{2})/.exec(t); if (m) return m[0]; m = /(\d{1,2})\s([A-Za-z]{3})\w*\s'?(\d{2,4})/.exec(t); if (m && MON[m[2].toLowerCase()]) { const y = m[3].length === 2 ? "20" + m[3] : m[3]; return `${y}-${String(MON[m[2].toLowerCase()]).padStart(2, "0")}-${m[1].padStart(2, "0")}`; } return ""; };
 
@@ -127,6 +127,7 @@
     const p = await getPos(); if (!p) return null; D.posId = p.id; showPos(p, false);
     const set = (k, v) => { if (v && (force.includes(k) || !D[k])) D[k] = v; };
     set("dir", p.dir); set("date", day(p.t0)); set("closeDate", day(p.t1));
+    if (INV()) { if (p.entry) set("sEntry", String(p.entry)); if (p.sl) set("sStop", String(+p.sl.toFixed(4))); keep(); return p; }
     // planned entry, stop and target in pips (0.0001; JPY 0.01; gold 0.1)
     if (p.entry) { const pr = pairOf(D.pair), pip = /JPY/.test(pr) ? 0.01 : /XAU/.test(pr) ? 0.1 : /XAG/.test(pr) ? 0.01 : 0.0001, r1 = (x) => String(Math.round(x * 10) / 10);
       const dec = String(p.entry).split(".")[1]; set("planEntry", String(+p.entry.toFixed(Math.min(6, Math.max(2, dec ? dec.length : 5)))));
@@ -149,17 +150,18 @@
   /* ---------- step by step ---------- */
   // ask the page to switch the chart's timeframe (hook.js does it through TradingView's own API)
   const setTf = (res) => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "tfok") { removeEventListener("message", f); tfPrev = e.data.prev || ""; done(e.data.ok ? (e.data.same ? "same" : true) : false); } }; addEventListener("message", f); window.postMessage({ __tj: "tf", res, fit: autoFit }, location.origin); setTimeout(() => { removeEventListener("message", f); done(false); }, 1500); });
-  const steps = () => [["setup", "Trade"], ["weekly", "Weekly", "1W"], ["daily", "Daily", "1D"], ["h4", "4H", "240"],
+  const steps = () => INV() ? [["setup", "Trade"], ["m12", "12M", "12M"], ["m6", "6M", "6M"], ["m3", "3M", "3M"], ["mo", "Monthly", "1M"], ["wk", "Weekly", "1W"], ["exec", "Execution"]]
+    : [["setup", "Trade"], ["weekly", "Weekly", "1W"], ["daily", "Daily", "1D"], ["h4", "4H", "240"],
     ...(D.entry4h === "Engulfing Candle" ? [["ltf", D.ecTf === "1h" ? "1H" : "2H", D.ecTf === "1h" ? "60" : "120"]] : []), ["result", "Result"]];
   const dateStep = () => steps().filter((x) => x[2]).pop()[0];
-  const missSetup = () => [!D.pair && "pair", !D.dir && "direction"].filter(Boolean);
+  const missSetup = () => INV() ? [!D.pair && "ticker"].filter(Boolean) : [!D.pair && "pair", !D.dir && "direction"].filter(Boolean);
   const curStep = () => { const L = steps(); if (step >= L.length) step = L.length - 1; return L[step]; };
   const snapFor = (slot) => new Promise((done) => { snapWait = { slot, done }; armed = slot; clearTimeout(armTimer); trySnapshot(); setTimeout(() => { if (snapWait && snapWait.slot === slot) { snapWait = null; armed = null; done(false); } }, 6000); });
   async function goStep(i) {
     step = Math.max(0, Math.min(steps().length - 1, i)); store({ step }); dd = null;
     const s = curStep(); if (s[2]) { msg = ""; render(); const ok = await setTf(s[2]); msg = ok ? "" : `Switch the chart to ${s[1]} yourself.`;
       if (s[0] === dateStep() && !D.date) { await fromPos(); if (!D.date) { const dt = await replayDate(); if (dt) { D.date = dt; keep(); } else if (LIVE()) { D.date = new Date().toISOString().slice(0, 10); keep(); } } } }
-    if (s[0] === "result" && !D.closeDate) await fromPos();
+    if ((s[0] === "result" || s[0] === "exec") && !D.closeDate) await fromPos();
     render();
   }
   async function startSteps(fresh) {
@@ -170,7 +172,7 @@
   async function next() {
     const s = curStep();
     if (s[0] === "setup") { const miss = missSetup(); if (miss.length) { msg = "Still needed: " + miss.join(", ") + "."; return render(); } return goStep(step + 1); }
-    if (s[0] === "result") return save();
+    if (s[0] === "result" || s[0] === "exec") return save();
     busy = true; msg = `Grabbing the ${s[1]} chart…`; render();
     const ok = await snapFor(s[0]); busy = false;
     if (!ok) { msg = `The ${s[1]} snapshot didn't come through. Press Alt+S on the chart, or continue without it.`; s.failed = true; return render(); }
@@ -179,6 +181,15 @@
 
   /* ---------- doc ---------- */
   function toDoc() {
+    if (INV()) { const num = (v) => v === "" || v == null || isNaN(+v) ? null : +v, tk = pairOf(D.pair);
+      return { id: uid(), market: "stocks", mode: LIVE() ? "live" : "backtest", dir: "long", project: LIVE() ? null : D.project || null, ticker: tk, pair: tk,
+        date: D.date, closeDate: "", status: D.missed ? "missed" : "taken", account: LIVE() ? D.account || "" : "", btDate: LIVE() ? null : new Date().toISOString().slice(0, 10),
+        sPhase: D.sPhase || "", s6bm: D.sPhase === "A" ? D.s6bm || "" : "", s6ret: D.sPhase === "B" ? D.s6ret || "" : "", swPat: D.swPat || "",
+        s3bm: !!D.s3bm, s3room: !!D.s3room, s3roomB: !!D.s3roomB, s1room: !!D.s1room, s1cc: !!D.s1cc,
+        s12Ms: D.s12Ms || "", s12bm: D.s12Ms === "for" ? D.s12bm || "" : "", s12ret: D.s12Ms === "against" ? D.s12ret || "" : "", s6Ms: D.s6Ms || "", s3Ms: D.s3Ms || "", s1Ms: D.s1Ms || "", swMs: D.swMs || "",
+        sEntry: num(D.sEntry), sStop: num(D.sStop), notes: (D.notes || "").trim(), sCur: D.sCur || "USD", sFx: null, sShares: num(D.sShares), sExits: [],
+        shotLinks: Object.fromEntries(["m12", "m6", "m3", "mo", "wk"].filter((k) => D.links[k]).map((k) => [k, D.links[k]])), r: null, pnl: null, retPct: null, outcome: "",
+        created: Date.now(), source: "tradingview-extension" }; }
     const weekly = { ...D.w };
     if (D.ms) weekly.ms = D.ms; if (D.trend) weekly.trend = D.trend; if (D.wPat) weekly.pattern = "for";
     const st = hasStruct(D.entry4h) ? D.struct : "", bos = st === "bos", som = st === "som", num = (v) => v === "" || v == null || isNaN(+v) ? null : +v;
@@ -191,17 +202,17 @@
       ecTf: D.entry4h === "Engulfing Candle" ? D.ecTf : "", shots: {}, shotLinks: { ...D.links }, pair: pairOf(D.pair), dir: D.dir, created: Date.now(), source: "tradingview-extension" };
   }
   const rrText = () => { const sl = +D.slPips, tp = +D.tpPips; return sl > 0 && tp > 0 ? "1 : " + (Math.round(tp / sl * 100) / 100) : "—"; };
-  const LIVE = () => tmode === "live";
+  const LIVE = () => tmode === "live", INV = () => mkt === "stocks";
   const ctxSel = () => LIVE()
-    ? f("Account", `<select data-k="account"><option value="">No account</option>${accounts.map((a) => `<option value="${esc(a.name)}" ${a.name === D.account ? "selected" : ""}>${esc(a.name)}${(a.status || (a.archived ? "closed" : "active")) !== "active" ? " (" + esc(a.status || "closed") + ")" : ""}</option>`).join("")}${D.account && !accounts.some((a) => a.name === D.account) ? `<option selected value="${esc(D.account)}">${esc(D.account)}</option>` : ""}</select>`)
-    : f("Project", `<select data-k="project"><option value="">No project</option>${projects.map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`);
-  const missing = () => [!D.pair && "pair", !D.date && "date", !D.dir && "direction"].filter(Boolean);
+    ? f("Account", `<select data-k="account"><option value="">No account</option>${accounts.filter((a) => (a.market || "fx") === mkt).map((a) => `<option value="${esc(a.name)}" ${a.name === D.account ? "selected" : ""}>${esc(a.name)}${(a.status || (a.archived ? "closed" : "active")) !== "active" ? " (" + esc(a.status || "closed") + ")" : ""}</option>`).join("")}${D.account && !accounts.some((a) => a.name === D.account && (a.market || "fx") === mkt) ? `<option selected value="${esc(D.account)}">${esc(D.account)}</option>` : ""}</select>`)
+    : f("Project", `<select data-k="project"><option value="">No project</option>${projects.filter((p) => (p.market || "fx") === mkt).map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`);
+  const missing = () => INV() ? [!D.pair && "ticker", !D.date && "date"].filter(Boolean) : [!D.pair && "pair", !D.date && "date", !D.dir && "direction"].filter(Boolean);
   async function save() {
     const miss = missing(); if (miss.length) { msg = "Still needed: " + miss.join(", ") + (view === "steps" && !D.date ? ` (on the ${steps().find((x) => x[0] === dateStep())[1]} step)` : "") + "."; return render(); }
     busy = true; render();
     try { const doc = toDoc(); await call("save", { doc }); savedId = doc.id; const pj = D.project, ac = D.account, pr = D.pair;
       D = { ...blank(), project: pj, account: ac, pair: pr }; store({ draft: D, lastProject: pj, lastAccount: ac });
-      msg = `Saved ${doc.pair} ${doc.dir}${doc.status === "missed" ? " (missed)" : ""} to ${LIVE() ? ac || "Live" : (projects.find((p) => p.id === pj) || {}).name || "Backtest"}.`; if (view === "steps") { step = 0; logging = false; store({ step, logging }); } }
+      msg = `Saved ${doc.pair}${INV() ? "" : " " + doc.dir}${doc.status === "missed" ? " (missed)" : ""} to ${LIVE() ? ac || "Live" : (projects.find((p) => p.id === pj) || {}).name || "Backtest"}.`; if (view === "steps") { step = 0; logging = false; store({ step, logging }); } }
     catch (e) { msg = "Couldn't save: " + e.message; }
     busy = false; render();
   }
@@ -234,7 +245,29 @@
     const csum = SLOTS.filter(([k]) => D.links[k]).map(([, l]) => l).join(" · ") || "none yet";
     const rsum = [D.outcome && ({ win: "Win", be: "BE", loss: "Loss" })[D.outcome], D.r !== "" && D.r + "R", D.evaluation && (D.evaluation === "plan" ? "To plan" : "Not to plan")].filter(Boolean).join(" · ");
     const pj = projects.find((p) => p.id === D.project);
-    const B = { setup: () => `      ${ctxSel()}
+    const ms = (k) => seg(k, [["for", "✓ With"], ["against", "✗ Against"]], D[k]);
+    const chk = (k, l) => `<button type="button" class="sg${D[k] ? " on" : ""}" data-tog="${k}">${l}</button>`;
+    const IB = {
+      setup: () => `${ctxSel()}
+        <div class="row2">${f(`Ticker <button type="button" class="lnk inl" data-act="read" title="Read it from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" autocomplete="off">`)}
+          ${f("Phase", seg("sPhase", [["A", "Phase A"], ["B", "Phase B"]], D.sPhase))}</div>${posSel()}
+        ${f("Missed trade", `<div class="segs">${chk("missed", "Missed")}</div>`)}`,
+      m12: () => `${f("Market structure", ms("s12Ms"))}
+        ${D.s12Ms === "for" ? f("Pattern <em>optional</em>", seg("s12bm", [["FS", "FS"], ["100", "100"], ["PinP", "PinP"]], D.s12bm)) : ""}
+        ${D.s12Ms === "against" ? f("Back to previous structure", seg("s12ret", [["FS", "FS"], ["100", "100"]], D.s12ret)) : ""}`,
+      m6: () => `${f("Market structure", ms("s6Ms"))}
+        ${D.sPhase === "A" ? f("BM", seg("s6bm", [["FS", "FS"], ["100", "100"], ["PinP", "PinP"]], D.s6bm)) : ""}
+        ${D.sPhase === "B" ? f("Back to previous MS", seg("s6ret", [["FS", "FS"], ["100", "100"]], D.s6ret)) : ""}`,
+      m3: () => `${f("Market structure", ms("s3Ms"))}
+        ${D.sPhase === "A" ? `<div class="segs">${chk("s3bm", "BM")}${chk("s3room", "Room")}</div>` : D.sPhase === "B" ? `<div class="segs">${chk("s3roomB", "Room")}</div>` : ""}`,
+      mo: () => `${f("Market structure", ms("s1Ms"))}
+        ${D.sPhase ? `<div class="segs">${D.sPhase === "A" ? chk("s1room", "Room") : ""}${chk("s1cc", "Bullish CC")}</div>` : ""}`,
+      wk: () => `${f("Market structure", ms("swMs"))}${f("Pattern", seg("swPat", [["BM", "BM"], ["IHS", "IHS"]], D.swPat))}`,
+      exec: () => `${f("Currency", seg("sCur", [["USD", "USD"], ["EUR", "EUR"], ["GBP", "GBP"], ["CAD", "CAD"], ["CHF", "CHF"]], D.sCur || "USD"))}
+        <div class="row3">${f("Shares bought", `<input type="number" step="any" min="0" data-k="sShares" value="${esc(D.sShares)}">`)}${f("Entry", `<input type="number" step="any" data-k="sEntry" value="${esc(D.sEntry)}">`)}${f("Initial stop", `<input type="number" step="any" data-k="sStop" value="${esc(D.sStop)}">`)}</div>
+        ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}
+        <p class="hint">Exits and the rate are added in the journal when you sell.</p>` };
+    const B = INV() ? { ...IB, setup: IB.setup } : { setup: () => `      ${ctxSel()}
       <div class="row2">${f(`Pair <button type="button" class="lnk inl" data-act="read" title="Read pair and replay date from the chart">⟳ from chart</button>`, `<input type="text" data-k="pair" value="${esc(D.pair)}" list="tjpairs" autocomplete="off"><datalist id="tjpairs">${String((pj && pj.pairs) || "").split(/[\s,]+/).filter(Boolean).map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`)}
         ${view === "steps" ? f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir)) : f("Date", `<input type="date" data-k="date" value="${esc(D.date)}">`)}</div>
       ${view === "steps" ? "" : f("Direction", seg("dir", [["long", "↑ Long"], ["short", "↓ Short"]], D.dir))}${posSel()}
@@ -262,7 +295,7 @@
         ${f("According to plan?", seg("evaluation", [["plan", "Yes"], ["off", "No"]], D.evaluation))}
         ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}`,
       ltf: () => `<p class="hint">Find the reversal on the ${curStep()[1]}, then continue to grab the chart.</p>` };
-    const HEAD = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">${LIVE() ? "Live" : "Backtest"}</span><button type="button" class="x" data-act="settings" title="Settings">⚙</button><button type="button" class="x x2" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x x2" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`;
+    const HEAD = `<div class="head"><b>Trade Journal</b><span class="who" title="${esc(user.email)}">${INV() ? "Invest · " : ""}${LIVE() ? "Live" : "Backtest"}</span><button type="button" class="x" data-act="settings" title="Settings">⚙</button><button type="button" class="x x2" data-act="reload" title="Reload extension (v${esc(chrome.runtime.getManifest().version)}) after an update">⟳</button><button type="button" class="x x2" data-act="hide" title="Minimize">–</button><button type="button" class="x x2" data-act="close" title="Hide panel">×</button></div>`;
     if (settings) {
       const L = look.match && jLook ? jLook : look, ST = [["chart", "Chart"], ["replay", "Replay"], ["look", "Look"], ["account", "Account"]];
       const tab = ST.some(([k]) => k === setTab) ? setTab : "chart";
@@ -279,14 +312,15 @@
       <div class="body idle">${tb[tab]()}</div>
       <div class="foot"><div class="fb"><button type="button" class="btn ghost" data-act="settings">Back</button></div></div>`;
     } else if (view === "steps" && !logging) {
-      const draft = D.dir || D.fase || D.concept || D.entry4h || Object.keys(D.links).length;
+      const draft = (INV() ? D.sPhase || D.s12Ms || D.s6Ms : D.dir || D.fase || D.concept || D.entry4h) || Object.keys(D.links).length;
       panel.innerHTML = `${HEAD}<div class="body idle">
+        <div class="segs mode">${[["fx", "Forex"], ["stocks", "Invest"]].map(([k, l]) => `<button type="button" class="sg${mkt === k ? " on" : ""}" data-mkt="${k}">${l}</button>`).join("")}</div>
         <div class="segs mode">${[["backtest", "Backtest"], ["live", "Live"]].map(([k, l]) => `<button type="button" class="sg${tmode === k ? " on" : ""}" data-tmode="${k}">${l}</button>`).join("")}</div>
         ${ctxSel()}
-        ${draft ? `<p class="hint">Unfinished trade: ${esc([D.pair, D.dir && (D.dir === "long" ? "↑ Long" : "↓ Short"), steps()[step] && "at " + steps()[step][1]].filter(Boolean).join(" · "))}</p>
+        ${draft ? `<p class="hint">Unfinished trade: ${esc([D.pair, !INV() && D.dir && (D.dir === "long" ? "↑ Long" : "↓ Short"), INV() && D.sPhase && "Phase " + D.sPhase, steps()[step] && "at " + steps()[step][1]].filter(Boolean).join(" · "))}</p>
           <div class="fb"><button type="button" class="btn pri" data-act="log">▶ Continue trade</button><button type="button" class="btn ghost" data-act="discard">Discard it</button></div>`
-        : `<div class="newt"><button type="button" class="fab" data-act="log" aria-label="New trade" title="New trade">+</button><span><b>New trade</b><small>Weekly, Daily and 4H, grabbing each chart as you go.</small></span></div>`}
-        ${LIVE() ? "" : `<div class="skip"><b class="ttl">Skip to the next drawing hit (4H)</b>
+        : `<div class="newt"><button type="button" class="fab" data-act="log" aria-label="New trade" title="New trade">+</button><span><b>New trade</b><small>${INV() ? "12M, 6M, 3M, Monthly and Weekly" : "Weekly, Daily and 4H"}, grabbing each chart as you go.</small></span></div>`}
+        ${LIVE() || INV() ? "" : `<div class="skip"><b class="ttl">Skip to the next drawing hit (4H)</b>
           ${fwd ? fwdBtn() : `<div class="fb"><button type="button" class="btn ghost" data-act="skip1d" title="Stops at a hit, or at the latest when the daily candle closes">${FF}Daily CC</button><button type="button" class="btn ghost" data-act="skip1w" title="Stops at a hit, or at the latest when the weekly candle closes">${FF}Weekly CC</button></div>`}
           ${trig.length ? `<div class="tgw"><span class="tgl">Stop at</span><div class="tgs">${trig.map((t, k) => `<button type="button" class="tg${t.on === false ? "" : " on"}" data-tgtrig="${k}" title="${t.on === false ? "Off: skips ignore this style" : "On: skips stop at this style"}"><i style="background:${esc(t.color || "transparent")}"></i>${esc(t.label || (t.name === "rectangle" ? "Rectangle" : "Line"))}</button>`).join("")}</div></div>` : `<p class="hint">Stops at any horizontal line or rectangle. Add your templates in ⚙ → Replay.</p>`}</div>`}
       </div>${msg || savedId ? `<div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}${savedId ? `<a class="lnk ext" href="${JOURNAL}#trade=${encodeURIComponent(savedId)}" target="_blank" rel="noopener">Open in journal ↗</a>` : ""}</div>` : ""}`;
@@ -321,11 +355,11 @@
     if (d.act === "hide") { mini = true; store({ mini }); return render(); }
     if (d.act === "expand") { mini = false; store({ mini }); return render(); }
     if (d.act === "close") return toggle(false);
-    if (d.act === "log") { const fresh = !(D.dir || D.fase || D.concept || D.entry4h || Object.keys(D.links).length); savedId = ""; logging = true; store({ logging }); msg = ""; return startSteps(fresh); }
+    if (d.act === "log") { const fresh = !((INV() ? D.sPhase || D.s12Ms || D.s6Ms : D.dir || D.fase || D.concept || D.entry4h) || Object.keys(D.links).length); savedId = ""; logging = true; store({ logging }); msg = ""; return startSteps(fresh); }
     if (d.act === "stoplog") { logging = false; store({ logging }); msg = ""; return render(); }
     if (d.act === "discard") { const pj = D.project, ac = D.account, pr = D.pair; D = { ...blank(), project: pj, account: ac, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
     if (d.act === "posshow") { showPos(curPos()); return; }
-    if (d.act === "posrefresh") { const p = await fromPos(["dir", "date", "closeDate", "planEntry", "slPips", "tpPips"]); msg = p ? "" : posWhy; return render(); }
+    if (d.act === "posrefresh") { const p = await fromPos(["dir", "date", "closeDate", "planEntry", "slPips", "tpPips", "sEntry", "sStop"]); msg = p ? "" : posWhy; return render(); }
     if (d.act === "fwd") { skipBack = ""; fwd = { n: 0 }; msg = ""; render(); window.postMessage({ __tj: "fwd", specs: onSigs(), max: 300 }, location.origin); return; }
     if ((d.act === "skip1d" || d.act === "skip1w" || d.act === "fwd") && trig.length && !onSigs().length) { msg = "All your styles are off. Turn at least one on."; return render(); }
     if (d.act === "skip1d" || d.act === "skip1w") { const days = d.act === "skip1d" ? 1 : 7; fwd = { n: 0 }; msg = ""; render();
@@ -333,6 +367,7 @@
     if (d.act === "fwdstop") { window.postMessage({ __tj: "fwdstop" }, location.origin); return; }
     if (d.act === "trigadd") { window.postMessage({ __tj: "sig" }, location.origin); return; }
     if (d.tmode) { tmode = d.tmode; store({ tmode }); msg = ""; return render(); }
+    if (d.mkt) { if (d.mkt !== mkt) { mkt = d.mkt; const ac = D.account, pr = D.project; D = { ...blank(), account: "", project: "" }; step = 0; store({ mkt, step, draft: D }); } msg = ""; return render(); }
     if (d.tgtrig != null) { const k = +d.tgtrig; if (trig[k]) { trig[k] = { ...trig[k], on: trig[k].on === false }; saveSet({ trig }); } return render(); }
     if (d.rmtrig != null) { trig = trig.filter((_, i) => i !== +d.rmtrig); saveSet({ trig }); return render(); }
     if (d.settab) { setTab = d.settab; return render(); }
@@ -350,7 +385,7 @@
       if (p && D[k] === day(k === "date" ? p.t0 : p.t1)) msg = `From the ${p.dir === "long" ? "Long" : "Short"} position.`;
       else { const dt = await replayDate(); if (dt) D[k] = dt; msg = dt ? "From the replay date. " + posWhy : "Couldn't read the date, so fill it in yourself."; }
       keep(); return render(); }
-    if (d.act === "read") { await ask(); if (info.symbol) D.pair = pairOf(info.symbol); const p = await fromPos(["dir", "date", "closeDate", "planEntry", "slPips", "tpPips"]); if (!p) { const dt = dateOf(info.replay); if (dt) D.date = dt; } msg = p ? `Direction and dates from the ${p.dir === "long" ? "Long" : "Short"} position.` : D.date ? posWhy : "Couldn't read the replay date, so fill it in yourself."; keep(); return render(); }
+    if (d.act === "read") { await ask(); if (info.symbol) D.pair = pairOf(info.symbol); const p = await fromPos(["dir", "date", "closeDate", "planEntry", "slPips", "tpPips", "sEntry", "sStop"]); if (!p) { const dt = dateOf(info.replay); if (dt) D.date = dt; } msg = p ? `Direction and dates from the ${p.dir === "long" ? "Long" : "Short"} position.` : D.date ? posWhy : "Couldn't read the replay date, so fill it in yourself."; keep(); return render(); }
     if (d.sec) { collapsed[d.sec] = !collapsed[d.sec]; store({ collapsed }); return render(); }
     if (d.arm) return arm(d.arm);
     if (d.rm) { delete D.links[d.rm]; keep(); return render(); }
@@ -367,7 +402,7 @@
     if (e.target.dataset && e.target.dataset.set === "autoFit") { autoFit = e.target.checked; saveSet({ autoFit }); return; }
     if (e.target.dataset && e.target.dataset.set === "match") { look.match = e.target.checked; if (!look.match && jLook) look = { ...look, theme: jLook.theme, accent: jLook.accent }; saveSet({ look }); if (look.match) loadJLook(); else applyLook(); return render(); }
     const k = e.target.dataset && e.target.dataset.k; if (!k) return;
-    if (k === "posPick") { D.posPick = e.target.value; const p = await fromPos(["dir", "date", "closeDate", "planEntry", "slPips", "tpPips"]); showPos(p); msg = p ? "" : posWhy; return render(); }
+    if (k === "posPick") { D.posPick = e.target.value; const p = await fromPos(["dir", "date", "closeDate", "planEntry", "slPips", "tpPips", "sEntry", "sStop"]); showPos(p); msg = p ? "" : posWhy; return render(); }
     D[k] = e.target.value;
     // typing fields: no re-render, so a click that caused the blur (e.g. Save) isn't lost
     if (e.target.tagName === "TEXTAREA" || e.target.type === "number" || e.target.type === "date" || k === "pair") { if (k === "pair") { D.pair = pairOf(D.pair); e.target.value = D.pair; } keep(); return; }
