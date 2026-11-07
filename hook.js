@@ -51,13 +51,17 @@
     if (e.source !== window || !e.data || e.data.__tj !== "tf") return;
     const res = String(e.data.res || ""); let ok = false;
     try { const api = window.TradingViewApi, ch = api && (api.activeChart ? api.activeChart() : api.chart && api.chart()); if (ch && ch.setResolution) {
-        // when the new timeframe has loaded: if the price scale's Auto was off, turn it on and off
-        // again so the chart fits the screen (Auto stays off, as you had it)
-        let fixed = false; const fix = () => { if (fixed) return; fixed = true; try {
-          const pane = ch.getPanes && ch.getPanes()[0], sc = pane && ((pane.getMainSourcePriceScale && pane.getMainSourcePriceScale()) || (pane.getRightPriceScales && pane.getRightPriceScales()[0]));
-          if (sc && sc.isAutoScale && sc.setAutoScale && !sc.isAutoScale()) { sc.setAutoScale(true); setTimeout(() => { try { sc.setAutoScale(false); } catch {} }, 60); }
-        } catch {} };
-        ch.setResolution(res, () => setTimeout(fix, 150)); setTimeout(fix, 1200); ok = true; } } catch {}
+        // when the new timeframe has loaded: if Auto (price scale) was off, click it on and off again
+        // so the chart fits the screen. Auto stays off, as you had it.
+        const W = (ms) => new Promise((r) => setTimeout(r, ms)), frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const scale = () => { try { const p = ch.getPanes()[0]; return p.getMainSourcePriceScale() || p.getRightPriceScales()[0]; } catch { return null; } };
+        const autoBtn = () => document.querySelector('button[aria-label="Toggle auto scale"]');
+        const isAuto = () => { const s = scale(); if (s && s.isAutoScale) return s.isAutoScale(); const b = autoBtn(); return !!b && /activated/.test(b.className); };
+        const flip = (v) => { const b = autoBtn(); if (b) b.click(); else { const s = scale(); if (s && s.setAutoScale) s.setAutoScale(v); } };
+        const wasAuto = isAuto();
+        const fit = async () => { if (wasAuto) return; await W(300); await frame(); if (isAuto()) return; flip(true); await W(250); await frame(); if (isAuto()) flip(false); };
+        Promise.resolve(ch.setResolution(res)).catch(() => {}).then(fit);
+        ok = true; } } catch {}
     if (!ok) { const alt = { "1W": ["1W", "W"], "1D": ["1D", "D"] }[res] || [res]; const b = alt.map((v) => document.querySelector(`#header-toolbar-intervals [data-value="${v}"]`)).find(Boolean); if (b) { b.click(); ok = true; } }
     window.postMessage({ __tj: "tfok", ok }, location.origin);
   });
