@@ -190,7 +190,7 @@
         sPhase: D.sPhase || "", s6bm: D.sPhase === "A" ? D.s6bm || "" : "", s6ret: D.sPhase === "B" ? D.s6ret || "" : "", swPat: D.swPat || "",
         s3bm: !!D.s3bm, s3room: !!D.s3room, s3roomB: !!D.s3roomB, s1room: !!D.s1room, s1cc: !!D.s1cc,
         s12Ms: D.s12Ms || "", s12bm: D.s12Ms === "for" ? D.s12bm || "" : "", s12ret: D.s12Ms === "against" ? D.s12ret || "" : "", s6Ms: D.s6Ms || "", s3Ms: D.s3Ms || "", s1Ms: D.s1Ms || "", swMs: D.swMs || "",
-        sEntry: num(D.sEntry), sStop: num(D.sStop), notes: (D.notes || "").trim(), sCur: LIVE() ? D.sCur || "USD" : "USD", sFx: null, sShares: LIVE() ? num(D.sShares) : 1,
+        sEntry: num(D.sEntry), sStop: num(D.sStop), notes: (D.notes || "").trim(), sCur: LIVE() || simProj() ? D.sCur || "USD" : "USD", sFx: null, sShares: LIVE() ? num(D.sShares) : 1,
         // backtest: a notional position of 1, so the journal can work out R and % (exits are % of it)
         sExits: (D.sExits || []).filter((x) => exShares(x) || num(x.price) || (x.hows || []).length).map((x) => ({ shares: exShares(x) || null, price: num(x.price), date: x.date || "", hows: x.hows || [], how: (x.hows || []).join(" + ") })),
         shotLinks: Object.fromEntries(["m12", "m6", "m3", "mo", "wk"].filter((k) => D.links[k]).map((k) => [k, D.links[k]])),
@@ -215,6 +215,7 @@
     : f("Project", `<select data-k="project"><option value="">No project</option>${projects.filter((p) => (p.market || "fx") === mkt).map((p) => `<option value="${esc(p.id)}" ${p.id === D.project ? "selected" : ""}>${esc(p.name)}${p.status === "closed" ? " (closed)" : ""}</option>`).join("")}</select>`);
   // invest exits (the journal's exit plan per phase)
   const EXITS0 = { A: [["6M BOC", 40], ["3M BOC", 30], ["6M −27 FC", 15], ["Weekly TS", 15]], B: [["3M FS", 60], ["6M BOC", 40]] }, EXOTHER0 = ["3M FS", "Weekly TS", "BE", "Stop loss", "Manual"];
+  const simProj = () => { const p = projects.find((x) => x.id === D.project); return p && p.simAccount && p.simMax > 0 ? p : null; };
   const exPlan = () => ((P.exits || EXITS0)[D.sPhase] || []);
   const exOpts = () => [...new Set([...exPlan().map((x) => x[0]), ...(P.exother || EXOTHER0), ...(D.sExits || []).flatMap((x) => x.hows || [])])];
   // position size: live = shares bought; backtest = a notional 1 (exits are % of it)
@@ -287,7 +288,8 @@
       // backtest: no shares bought or currency, just where you'd enter and stop
       exec: () => { const plan = exPlan(), sum = exSum(), sg = (v) => (v > 0 ? "+" : "") + v.toFixed(2);
         return `${f(`Date <button type="button" class="lnk inl" data-act="readdate" title="From the Long/Short position, or the replay date">⟳ from chart</button>`, `<input type="date" data-k="date" value="${esc(D.date)}">`)}
-        ${LIVE() ? f("Currency", seg("sCur", [["USD", "USD"], ["EUR", "EUR"], ["GBP", "GBP"], ["CAD", "CAD"], ["CHF", "CHF"]], D.sCur || "USD")) : ""}
+        ${LIVE() || simProj() ? f("Currency", seg("sCur", [["USD", "USD"], ["EUR", "EUR"], ["GBP", "GBP"], ["CAD", "CAD"], ["CHF", "CHF"]], D.sCur || "USD")) : ""}
+        ${!LIVE() && simProj() ? `<p class="hint">Simulated with ${esc(simProj().simAccount)}: max ${esc(String(simProj().simMax))} per position. The journal works out the shares and P&amp;L.</p>` : ""}
         <div class="${LIVE() ? "row3" : "row2"}">${LIVE() ? f("Shares bought", `<input type="number" step="any" min="0" data-k="sShares" value="${esc(D.sShares)}">`) : ""}${f("Entry", `<input type="number" step="any" data-k="sEntry" value="${esc(D.sEntry)}">`)}${f("Initial stop", `<input type="number" step="any" data-k="sStop" value="${esc(D.sStop)}">`)}</div>
         <b class="ttl">Exits</b>
         ${plan.length ? `<p class="hint">Plan: ${esc(plan.map(([n, p]) => p + "% " + n).join(" · "))}</p>` : ""}
