@@ -8,6 +8,8 @@
   }));
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const JOURNAL = "https://dashicledev.github.io/TradeJournal/";
+  const FF = `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6l7 6-7 6zM13 6l7 6-7 6z" fill="currentColor"/></svg>`;
+
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const tvImg = (id) => id ? `https://s3.tradingview.com/snapshots/${id[0].toLowerCase()}/${id}.png` : "";
   const SLOTS = [["weekly", "Weekly"], ["daily", "Daily"], ["h4", "4H"], ["ltf", "1H/2H"]];
@@ -135,8 +137,9 @@
     if (e.data.__tj === "sigok") { if (e.data.err) msg = e.data.err; else if (trig.some((t) => t.sig === e.data.sig)) msg = "That style is already in the list.";
       else { trig = [...trig, { sig: e.data.sig, name: e.data.name, color: e.data.color, label: e.data.text || "" }]; saveSet({ trig }); msg = ""; } render(); }
   });
-  const fwdBtn = () => fwd ? `<div class="fwd"><span>⏩ Forwarding… ${fwd.n || 0} candle${fwd.n === 1 ? "" : "s"}</span><button type="button" class="btn sm" data-act="fwdstop">■ Stop</button></div>`
-    : `<button type="button" class="btn sm fwdgo" data-act="fwd" >⏩ Forward to drawing</button>`;
+  const onSigs = () => trig.filter((t) => t.on !== false).map((t) => t.sig);
+  const fwdBtn = () => fwd ? `<div class="fwd"><span>${FF}Forwarding… ${fwd.n || 0} candle${fwd.n === 1 ? "" : "s"}</span><button type="button" class="btn sm" data-act="fwdstop">■ Stop</button></div>`
+    : `<button type="button" class="btn sm fwdgo" data-act="fwd">${FF}Forward to drawing</button>`;
 
   /* ---------- step by step ---------- */
   // ask the page to switch the chart's timeframe (hook.js does it through TradingView's own API)
@@ -273,7 +276,8 @@
           <div class="fb"><button type="button" class="btn pri" data-act="log">▶ Continue trade</button><button type="button" class="btn ghost" data-act="discard">Discard it</button></div>`
         : `<div class="newt"><button type="button" class="fab" data-act="log" aria-label="New trade" title="New trade">+</button><span><b>New trade</b><small>Weekly, Daily and 4H, grabbing each chart as you go.</small></span></div>`}
         <div class="skip"><b class="ttl">Skip to the next drawing hit (4H)</b>
-          ${fwd ? fwdBtn() : `<div class="fb"><button type="button" class="btn ghost" data-act="skip1d" title="Stops at a hit, or at the latest when the daily candle closes">⏩ Until daily close</button><button type="button" class="btn ghost" data-act="skip1w" title="Stops at a hit, or at the latest when the weekly candle closes">⏩ Until weekly close</button></div>`}</div>
+          ${fwd ? fwdBtn() : `<div class="fb"><button type="button" class="btn ghost" data-act="skip1d" title="Stops at a hit, or at the latest when the daily candle closes">${FF}Until daily close</button><button type="button" class="btn ghost" data-act="skip1w" title="Stops at a hit, or at the latest when the weekly candle closes">${FF}Until weekly close</button></div>`}
+          ${trig.length ? `<div class="tgs">${trig.map((t, k) => `<button type="button" class="tg${t.on === false ? "" : " on"}" data-tgtrig="${k}" title="${t.on === false ? "Off: skips ignore this style" : "On: skips stop at this style"}"><i style="background:${esc(t.color || "transparent")}"></i>${esc(t.label || (t.name === "rectangle" ? "Rectangle" : "Line"))}</button>`).join("")}</div>` : `<p class="hint">Stops at any horizontal line or rectangle. Add your templates in ⚙ → Replay.</p>`}</div>
       </div>${msg || savedId ? `<div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}${savedId ? `<a class="lnk ext" href="${JOURNAL}#trade=${encodeURIComponent(savedId)}" target="_blank" rel="noopener">Open in journal ↗</a>` : ""}</div>` : ""}`;
     } else if (view === "steps") {
       const L = steps(), s = curStep(), last = step === L.length - 1, link = s[2] && D.links[s[0]];
@@ -311,13 +315,15 @@
     if (d.act === "discard") { const pj = D.project, pr = D.pair; D = { ...blank(), project: pj, pair: pr }; step = 0; store({ step, draft: D }); msg = ""; return render(); }
     if (d.act === "posshow") { showPos(curPos()); return; }
     if (d.act === "posrefresh") { const p = await fromPos(["dir", "date", "closeDate"]); msg = p ? "" : posWhy; return render(); }
-    if (d.act === "fwd") { skipBack = ""; fwd = { n: 0 }; msg = ""; render(); window.postMessage({ __tj: "fwd", sigs: trig.map((t) => t.sig), max: 300 }, location.origin); return; }
+    if (d.act === "fwd") { skipBack = ""; fwd = { n: 0 }; msg = ""; render(); window.postMessage({ __tj: "fwd", sigs: onSigs(), max: 300 }, location.origin); return; }
+    if ((d.act === "skip1d" || d.act === "skip1w" || d.act === "fwd") && trig.length && !onSigs().length) { msg = "All your styles are off. Turn at least one on."; return render(); }
     if (d.act === "skip1d" || d.act === "skip1w") { const days = d.act === "skip1d" ? 1 : 7; fwd = { n: 0 }; msg = ""; render();
       const ok = await setTf("240"); skipBack = ok === true ? tfPrev : ""; if (!ok) { fwd = null; msg = "Switch the chart to 4H yourself, then try again."; return render(); }
       if (ok !== "same") await new Promise((r) => setTimeout(r, 600));
-      window.postMessage({ __tj: "fwd", sigs: trig.map((t) => t.sig), max: 300, until: days === 1 ? "D" : "W" }, location.origin); return; }
+      window.postMessage({ __tj: "fwd", sigs: onSigs(), max: 300, until: days === 1 ? "D" : "W" }, location.origin); return; }
     if (d.act === "fwdstop") { window.postMessage({ __tj: "fwdstop" }, location.origin); return; }
     if (d.act === "trigadd") { window.postMessage({ __tj: "sig" }, location.origin); return; }
+    if (d.tgtrig != null) { const k = +d.tgtrig; if (trig[k]) { trig[k] = { ...trig[k], on: trig[k].on === false }; saveSet({ trig }); } return render(); }
     if (d.rmtrig != null) { trig = trig.filter((_, i) => i !== +d.rmtrig); saveSet({ trig }); return render(); }
     if (d.settab) { setTab = d.settab; return render(); }
     if (d.look) { if (look.match && jLook) look = { ...look, theme: jLook.theme, accent: jLook.accent }; look.match = false; look[d.look] = d.v; saveSet({ look }); applyLook(); return render(); }
@@ -418,6 +424,7 @@
   .fwd{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:6px 9px;border:1px solid var(--acc);border-radius:7px;font-size:12.5px}.fwdgo{justify-self:start}.trl{display:grid;gap:6px}.tr{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:5px 8px;border:1px solid var(--line);border-radius:7px}.tr i{width:14px;height:14px;border-radius:4px;border:1px solid var(--line)}.tr span{flex:1}.tr .trn{flex:1;min-width:0;padding:3px 6px;font-size:12.5px;background:transparent;border-color:transparent}.tr .trn:hover,.tr .trn:focus{border-color:var(--line);background:var(--in)}.tr em{font-style:normal;color:var(--mut);font-size:11px}.tr .lnk{font-size:16px;text-decoration:none}
   .newt{display:flex;align-items:center;gap:12px}.newt span{display:grid;gap:2px;font-size:13px}.newt small{color:var(--mut);font-size:12px}.fab{width:46px;height:46px;flex:none;border-radius:50%;border:0;background:var(--acc);color:#fff;font-size:30px;line-height:1;font-weight:400;padding:0 0 3px;cursor:pointer;box-shadow:0 6px 18px color-mix(in srgb,var(--acc) 40%,transparent)}.fab:hover{filter:brightness(1.08)}.skip{display:grid;gap:7px;border-top:1px solid var(--line);padding-top:10px}
   .lnk.ext{justify-self:start;color:var(--acc);text-decoration:none;font-weight:600;font-size:12.5px}
+  .ic{width:13px;height:13px;vertical-align:-2px;margin-right:5px;color:var(--acc)}.btn .ic{flex:none}.tgs{display:flex;flex-wrap:wrap;gap:6px}.tg{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:none;color:var(--mut);border-radius:999px;padding:4px 10px 4px 7px;font-size:12px;cursor:pointer}.tg i{width:10px;height:10px;border-radius:3px;opacity:.45}.tg.on{color:var(--ink);border-color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}.tg.on i{opacity:1}
   .ttl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}.sw{display:flex;gap:8px}.swb{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:inset 0 0 0 2px var(--bg)}.swb.on{border-color:var(--ink)}.chk{display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-top:4px}.chk input{width:auto;margin-top:2px;accent-color:var(--acc)}.chk small{display:block;color:var(--mut);font-size:11.5px;margin-top:2px}
   .btn.big{padding:11px 14px;font-size:14px}.idle{gap:12px}
   .msg{margin:0;font-size:12px;color:var(--ink);line-height:1.4}
