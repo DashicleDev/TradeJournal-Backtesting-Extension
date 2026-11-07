@@ -134,7 +134,7 @@
       if (!rp.isReplayStarted().value()) return say({ done: true, why: "Start bar replay first." });
       const sigs = e.data.sigs || [], max = e.data.max || 300;
       const pick = () => ch.getAllShapes().filter((s) => LEVELS.test(s.name) && (!sigs.length || sigs.includes(styleOf(ch, s)))).map((s) => levelsOf(ch, s)).filter(Boolean);
-      const touches = (b, L) => b[3] <= L.hi && b[2] >= L.lo; // bar = [time, open, high, low, close]
+      const touches = (b, L) => b[3] <= L.hi + 1e-9 && b[2] >= L.lo - 1e-9; // bar = [time, open, high, low, close]
       let bar = lastBar(); if (!bar) return say({ done: true, why: "Couldn't read the candles." });
       // drawings the current candle already touches don't count
       const allL = pick(), fmt = (x) => +x.toFixed(5), desc = (L) => (L.name === "rectangle" ? `rectangle ${fmt(L.lo)}–${fmt(L.hi)}` : `line ${fmt(L.lo)}`);
@@ -149,7 +149,9 @@
         let nb = null; for (let i = 0; i < 60; i++) { await new Promise((r) => setTimeout(r, 50)); const b = lastBar(); if (b && b[0] !== t) { nb = b; break; } }
         if (!nb) return say({ done: true, why: `No new candle came in (after ${n - 1}). Is the replay at the end?` });
         // the new candle fills in over a few updates: wait until it stops changing
-        let same = 0, key = nb.join(); for (let i = 0; i < 20 && same < 3; i++) { await new Promise((r) => setTimeout(r, 50)); const b = lastBar(); const k = b ? b.join() : key; if (k === key) same++; else { same = 0; key = k; nb = b; } }
+        // a new candle first shows only its open (high = low): wait for the real high / low, then until it stops changing
+        for (let i = 0; i < 40 && nb[2] === nb[3]; i++) { await new Promise((r) => setTimeout(r, 50)); const b = lastBar(); if (b && b[0] === nb[0]) nb = b; }
+        let same = 0, key = nb.join(); for (let i = 0; i < 30 && same < 5; i++) { await new Promise((r) => setTimeout(r, 50)); const b = lastBar(); const k = b ? b.join() : key; if (k === key) same++; else { same = 0; key = k; nb = b; } }
         bar = nb; say({ n });
         if (maxSec && bar[0] - start > maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"}.` });
         // check the new candle and the one before it (with its final high / low)
