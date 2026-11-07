@@ -124,7 +124,7 @@
       else { trig = [...trig, { sig: e.data.sig, name: e.data.name, color: e.data.color }]; store({ trig }); msg = ""; } render(); }
   });
   const fwdBtn = () => fwd ? `<div class="fwd"><span>⏩ Forwarding… ${fwd.n || 0} candle${fwd.n === 1 ? "" : "s"}</span><button type="button" class="btn sm" data-act="fwdstop">■ Stop</button></div>`
-    : `<button type="button" class="btn sm fwdgo" data-act="fwd" title="Step the replay forward until price touches ${trig.length ? "a line or rectangle in your trigger styles" : "a horizontal line or rectangle"}">⏩ Forward to drawing</button>`;
+    : `<button type="button" class="btn sm fwdgo" data-act="fwd" >⏩ Forward to drawing</button>`;
 
   /* ---------- step by step ---------- */
   // ask the page to switch the chart's timeframe (hook.js does it through TradingView's own API)
@@ -242,7 +242,7 @@
         look: () => `<label class="chk"><input type="checkbox" data-set="match" ${look.match ? "checked" : ""}><span>Same look as my journal<small>Uses the theme and accent colour from your journal's settings.</small></span></label>
         ${f("Theme", `<div class="segs">${[["system", "System"], ["light", "Light"], ["dark", "Dark"], ["black", "Black"]].map(([k, l]) => `<button type="button" class="sg${L.theme === k ? " on" : ""}" data-look="theme" data-v="${k}">${l}</button>`).join("")}</div>`)}
         ${f("Accent colour", `<div class="sw">${ACCENTS.map(([k, l, c1, c2]) => `<button type="button" class="swb${L.accent === k ? " on" : ""}" data-look="accent" data-v="${k}" title="${l}" aria-label="${l}" style="background:${c2}"></button>`).join("")}</div>`)}`,
-        replay: () => `<p class="hint"><b>⏩ Forward to drawing</b> (4H step) steps the replay until price touches a horizontal line or rectangle. Add your templates here so it only stops at those.</p>
+        replay: () => `<p class="hint">The skip buttons on the start screen step the replay until price touches a horizontal line or rectangle. Add your templates here so they only stop at those.</p>
           ${trig.length ? `<div class="trl">${trig.map((t, i) => `<div class="tr"><i style="background:${esc(t.color || "transparent")}"></i><span>${t.name === "rectangle" ? "Rectangle" : t.name === "horizontal_ray" ? "Horizontal ray" : "Horizontal line"}</span><button type="button" class="lnk" data-rmtrig="${i}" title="Remove">×</button></div>`).join("")}</div>` : `<p class="hint">No styles yet, so it stops at any horizontal line or rectangle.</p>`}
           <div><button type="button" class="btn ghost sm" data-act="trigadd">＋ Use the selected drawing's style</button></div>
           ${msg ? `<p class="msg">${esc(msg)}</p>` : ""}`,
@@ -264,7 +264,7 @@
       const L = steps(), s = curStep(), last = step === L.length - 1, link = s[2] && D.links[s[0]];
       panel.innerHTML = `${HEAD}
       <div class="stp">${L.map(([k, l], i) => `<button type="button" class="st${i === step ? " on" : ""}${i < step ? " done" : ""}" data-go="${i}">${esc(l)}</button>`).join("")}</div>
-      <div class="body">${step ? posLine() : ""}${s[2] ? `<p class="hint">Chart is on ${esc(s[1])}. Position it, fill this in, then Continue grabs the chart.</p>` : ""}${B[s[0]]()}${s[0] === "h4" || s[0] === "ltf" ? fwdBtn() : ""}${s[0] === dateStep() ? f(`Entry date <button type="button" class="lnk inl" data-act="readdate" title="From the Long/Short position, or the replay date">⟳ from chart</button>`, `<input type="date" data-k="date" value="${esc(D.date)}">`) : ""}
+      <div class="body">${step ? posLine() : ""}${s[2] ? `<p class="hint">Chart is on ${esc(s[1])}. Position it, fill this in, then Continue grabs the chart.</p>` : ""}${B[s[0]]()}${s[0] === dateStep() ? f(`Entry date <button type="button" class="lnk inl" data-act="readdate" title="From the Long/Short position, or the replay date">⟳ from chart</button>`, `<input type="date" data-k="date" value="${esc(D.date)}">`) : ""}
         ${link ? `<div class="shot cur"><img src="${tvImg(link.match(/x\/([^/]+)/)[1])}" alt="${esc(s[1])} chart"><button type="button" class="rm" data-rm="${s[0]}" title="Remove">×</button></div>` : ""}</div>
       <div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb"><button type="button" class="lnk" data-act="stoplog" title="Stop for now. The trade is kept, so you can continue later.">Stop</button>${step ? `<button type="button" class="btn ghost" data-act="back" ${busy ? "disabled" : ""}>Back</button>` : ""}<span class="sp"></span>
         ${s.failed || (s[2] && msg && /didn't come/.test(msg)) ? `<button type="button" class="lnk" data-act="skip">Continue without chart</button>` : ""}

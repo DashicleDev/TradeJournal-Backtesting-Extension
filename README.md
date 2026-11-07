@@ -39,7 +39,7 @@ It only fills empty fields, so you can still change the dates; **⟳ from chart*
 
 On the start screen, **⏩ Until daily close** / **⏩ Until weekly close** switch the chart to 4H and skip to the next candle that touches one of your drawings, at most until the daily or weekly candle closes (forex: 17:00 New York, weekly on Friday).
 
-**⏩ Forward to drawing** (4H and 1H/2H steps, in bar replay): steps the replay forward until a candle touches a horizontal line or rectangle, max 300 candles, **■ Stop** to stop. In ⚙ → Replay you can add your templates (select a drawing, **Use the selected drawing's style**) so it only stops at those.
+While a skip runs, **■ Stop** stops it. In ⚙ → Replay you can add your templates (select a drawing, **Use the selected drawing's style**) so it only stops at those.
 
 **Stop** pauses logging and keeps the trade: the start screen then offers **Continue trade** or **Discard it**.
 
