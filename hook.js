@@ -50,6 +50,8 @@
   window.addEventListener("message", (e) => {
     if (e.source !== window || !e.data || e.data.__tj !== "tf") return;
     const res = String(e.data.res || ""); let ok = false;
+    const norm = (r) => String(r || "").toUpperCase().replace(/^1(?=[DWM]$)/, "");
+    try { const api0 = window.TradingViewApi, ch0 = api0 && api0.activeChart && api0.activeChart(); if (ch0 && ch0.resolution && norm(ch0.resolution()) === norm(res)) return window.postMessage({ __tj: "tfok", ok: true, same: true }, location.origin); } catch {}
     try { const api = window.TradingViewApi, ch = api && (api.activeChart ? api.activeChart() : api.chart && api.chart()); if (ch && ch.setResolution) {
         // when the new timeframe has loaded: if Auto (price scale) was off, click it on and off again
         // so the chart fits the screen. Auto stays off, as you had it.
@@ -146,7 +148,7 @@
       for (let n = 1; n <= max; n++) {
         if (fwdStop) return say({ done: true, why: `Stopped after ${n - 1} candles.` });
         const t = bar[0], sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-        try { const pr = rp.doStep(); if (pr && pr.then) await Promise.race([pr, sleep(1500)]); } catch {}
+        try { rp.doStep(); } catch {}
         // wait for the next candle; over a weekend gap TradingView can take a while, so step again once if nothing comes
         let nb = null; for (let i = 0; i < 400; i++) { const b = lastBar(); if (b && b[0] !== t) { nb = b; break; } if (i === 150) { try { rp.doStep(); } catch {} } await sleep(20); }
         if (!nb) return say({ done: true, why: `No new candle came in (after ${n - 1}). Is the replay at the end?` });

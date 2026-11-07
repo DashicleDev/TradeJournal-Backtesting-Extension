@@ -128,7 +128,7 @@
 
   /* ---------- step by step ---------- */
   // ask the page to switch the chart's timeframe (hook.js does it through TradingView's own API)
-  const setTf = (res) => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "tfok") { removeEventListener("message", f); done(e.data.ok); } }; addEventListener("message", f); window.postMessage({ __tj: "tf", res, fit: autoFit }, location.origin); setTimeout(() => { removeEventListener("message", f); done(false); }, 1500); });
+  const setTf = (res) => new Promise((done) => { const f = (e) => { if (e.source === window && e.data && e.data.__tj === "tfok") { removeEventListener("message", f); done(e.data.ok ? (e.data.same ? "same" : true) : false); } }; addEventListener("message", f); window.postMessage({ __tj: "tf", res, fit: autoFit }, location.origin); setTimeout(() => { removeEventListener("message", f); done(false); }, 1500); });
   const steps = () => [["setup", "Trade"], ["weekly", "Weekly", "1W"], ["daily", "Daily", "1D"], ["h4", "4H", "240"],
     ...(D.entry4h === "Engulfing Candle" ? [["ltf", D.ecTf === "1h" ? "1H" : "2H", D.ecTf === "1h" ? "60" : "120"]] : []), ["result", "Result"]];
   const dateStep = () => steps().filter((x) => x[2]).pop()[0];
@@ -299,7 +299,7 @@
     if (d.act === "fwd") { fwd = { n: 0 }; msg = ""; render(); window.postMessage({ __tj: "fwd", sigs: trig.map((t) => t.sig), max: 300 }, location.origin); return; }
     if (d.act === "skip1d" || d.act === "skip1w") { const days = d.act === "skip1d" ? 1 : 7; fwd = { n: 0 }; msg = ""; render();
       const ok = await setTf("240"); if (!ok) { fwd = null; msg = "Switch the chart to 4H yourself, then try again."; return render(); }
-      await new Promise((r) => setTimeout(r, 600));
+      if (ok !== "same") await new Promise((r) => setTimeout(r, 600));
       window.postMessage({ __tj: "fwd", sigs: trig.map((t) => t.sig), max: 300, until: days === 1 ? "D" : "W" }, location.origin); return; }
     if (d.act === "fwdstop") { window.postMessage({ __tj: "fwdstop" }, location.origin); return; }
     if (d.act === "trigadd") { window.postMessage({ __tj: "sig" }, location.origin); return; }
