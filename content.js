@@ -159,7 +159,10 @@
   const snapFor = (slot) => new Promise((done) => { snapWait = { slot, done }; armed = slot; clearTimeout(armTimer); trySnapshot(); setTimeout(() => { if (snapWait && snapWait.slot === slot) { snapWait = null; armed = null; done(false); } }, 6000); });
   async function goStep(i) {
     step = Math.max(0, Math.min(steps().length - 1, i)); store({ step }); dd = null;
-    const s = curStep(); if (s[2]) { msg = ""; render(); const ok = await setTf(s[2]); msg = ok ? "" : `Switch the chart to ${s[1]} yourself.`;
+    const s = curStep();
+    // invest: the Trade step shows the 6M chart, where you decide phase A or B (no snapshot here)
+    if (INV() && s[0] === "setup") { msg = ""; render(); const ok = await setTf("6M"); msg = ok ? "" : "Switch the chart to 6M yourself to judge the phase."; }
+    if (s[2]) { msg = ""; render(); const ok = await setTf(s[2]); msg = ok ? "" : `Switch the chart to ${s[1]} yourself.`;
       if (s[0] === dateStep() && !D.date) { await fromPos(); if (!D.date) { const dt = await replayDate(); if (dt) { D.date = dt; keep(); } else if (LIVE()) { D.date = new Date().toISOString().slice(0, 10); keep(); } } } }
     if ((s[0] === "result" || s[0] === "exec") && !D.closeDate) await fromPos();
     render();
