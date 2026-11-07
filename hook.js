@@ -170,24 +170,8 @@
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       // 1. your matching drawings and their prices, read on the timeframe you are on
       const watch = pick();
-      if (!watch.length) {
-        let why = sigs.length ? "No lines or rectangles in your trigger styles ahead of price." : "No horizontal lines or rectangles ahead of price.";
-        if (!ch.getAllShapes().some((s) => LEVELS.test(s.name))) { const names = [...new Set(ch.getAllShapes().map((s) => s.name))]; why += names.length ? " Drawings on the chart: " + names.join(", ") + "." : " There are no drawings on this chart."; }
-        if (specs.length) { // say what differs for the drawings that are on the chart
-          const tool = (ls) => ls.split("|")[0], cols = (ls) => ls.split("|")[1];
-          const notes = ch.getAllShapes().filter((s) => LEVELS.test(s.name)).slice(0, 6).map((s) => {
-            const ls = looseSig(styleOf(ch, s)), tx = normT(textOf(ch, s)), nm = textOf(ch, s) || s.name.replace("horizontal_", "").replace("_", " ");
-            if (specs.some((t) => t.ls === ls && t.tx === tx)) { const L = levelsOf(ch, s), f = (x) => +(+x).toFixed(5);
-              if (!L) return `${nm}: matches, but its price couldn't be read (${JSON.stringify(rawPts(ch, s)).slice(0, 120)})`;
-              return `${nm}: matches at ${f(L.lo)}`; }
-            const same = specs.find((t) => t.tx === tx) || specs.find((t) => tool(t.ls) === tool(ls) && cols(t.ls) === cols(ls));
-            if (!same) return `${nm}: no style with this text`;
-            const d = [tool(same.ls) !== tool(ls) && "other tool", cols(same.ls) !== cols(ls) && "other colour", same.tx !== tx && "other text"].filter(Boolean).join(", ");
-            return `${nm}: ${d || "different"}`; });
-          if (notes.length) why += " On the chart: " + notes.join("; ") + ".";
-        }
-        return say({ done: true, why });
-      }
+      // no matching drawings: just run to the close
+      const none = !watch.length, noneTxt = none ? " No matching drawings on the chart." : "";
       // 2. switch to 4H
       const norm = (r) => String(r || "").toUpperCase().replace(/^1(?=[DWM]$)/, ""), want = norm(e.data.res);
       let prev = ""; try { prev = String(ch.resolution()); } catch {}
@@ -233,7 +217,7 @@
           await sleep(120); { const b = lastBar(); if (b && b[0] === bar[0]) bar = b; }
           const h2 = watch.find((L) => (!isFinite(L.t0) || L.t0 <= bar[0]) && touches(bar, L));
           if (h2) return say({ done: true, hit: true, n, ti: h2.ti, why: `Price hit the ${/rect/i.test(h2.name) ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` }); }
-        if (until && bar[0] + 14400 >= until) return say({ done: true, why: `No hit before the ${e.data.until === "W" ? "weekly" : "daily"} close (${n} candle${n === 1 ? "" : "s"}).` });
+        if (until && bar[0] + 14400 >= until) return say({ done: true, why: `No hit before the ${e.data.until === "W" ? "weekly" : "daily"} close (${n} candle${n === 1 ? "" : "s"}).` + noneTxt });
         if (maxSec && bar[0] - start >= maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"} (${n} candles).` });
       }
       say({ done: true, why: `No hit in ${max} candles.` });
