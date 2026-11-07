@@ -55,11 +55,12 @@
         // so the chart fits the screen. Auto stays off, as you had it.
         const W = (ms) => new Promise((r) => setTimeout(r, ms)), frame = () => Promise.race([new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))), W(150)]);
         const scale = () => { try { const p = ch.getPanes()[0]; return p.getMainSourcePriceScale() || p.getRightPriceScales()[0]; } catch { return null; } };
-        const autoBtn = () => document.querySelector('button[aria-label="Toggle auto scale"]');
-        const isAuto = () => { const b = autoBtn(); if (b) return /activated/.test(b.className); const s = scale(); return !!(s && s.isAutoScale && s.isAutoScale()); };
+        const autoBtn = () => { const all = [...document.querySelectorAll('button[aria-label="Toggle auto scale"]')], vis = all.filter((b) => b.offsetParent && b.getBoundingClientRect().width > 0);
+          return vis.pop() || all.pop() || null; };
+        const isAuto = () => { const b = autoBtn(); if (b) return [...b.classList].some((c) => /^priceScaleModeButton_activated/.test(c)); const s = scale(); return !!(s && s.isAutoScale && s.isAutoScale()); };
         const flip = (v) => { const b = autoBtn(); if (b) b.click(); else { const s = scale(); if (s && s.setAutoScale) s.setAutoScale(v); } };
         const wasAuto = isAuto();
-        const say = (m) => window.postMessage({ __tj: "fitlog", m }, location.origin);
+        const say = (m) => { const b = autoBtn(); window.postMessage({ __tj: "fitlog", m: m + ` [${document.querySelectorAll('button[aria-label="Toggle auto scale"]').length} A-buttons; ${b ? b.className.replace(/-[\w]{6,}/g, "") : "none"}]` }, location.origin); };
         const fit = async () => { if (wasAuto) return say("Auto was on, left it on."); await W(800); await frame(); if (isAuto()) return say("Auto was on, left it on.");
           flip(true); await W(600); await frame(); const on = isAuto(); if (on) flip(false); say(on ? "Chart refitted (Auto on and off)." : "Couldn't turn Auto on (button " + (autoBtn() ? "found" : "not found") + ")."); };
         let done = false; const go = () => { if (!done) { done = true; fit(); } };
