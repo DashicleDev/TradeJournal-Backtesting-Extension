@@ -293,7 +293,8 @@
         ${plan.length ? `<p class="hint">Plan: ${esc(plan.map(([n, p]) => p + "% " + n).join(" · "))}</p>` : ""}
         ${(D.sExits || []).map((x, i) => `<div class="exr">
           <div class="row3">${f(LIVE() ? "Shares" : "% of position", `<input type="number" step="any" min="0" data-exi="${i}" data-exk="${LIVE() ? "shares" : "pct"}" value="${esc(LIVE() ? x.shares ?? "" : x.pct ?? "")}">`)}${f("Price", `<input type="number" step="any" min="0" data-exi="${i}" data-exk="price" value="${esc(x.price ?? "")}">`)}${f("Date", `<input type="date" data-exi="${i}" data-exk="date" value="${esc(x.date || "")}">`)}</div>
-          <div class="exh"><div class="segs">${exOpts().map((o) => `<button type="button" class="sg${(x.hows || []).includes(o) ? " on" : ""}" data-exhow="${esc(o)}" data-exi="${i}">${esc(o)}</button>`).join("")}</div><button type="button" class="lnk" data-exdel="${i}" title="Remove this exit">×</button></div></div>`).join("")}
+          <div class="exh">${f("Exit strategy", (() => { const hw = x.hows || [], rest = exOpts().filter((o) => !hw.includes(o));
+            return `<div class="ms"><div class="msbox" data-dd="ex${i}">${hw.map((h) => `<span class="mchip">${esc(h)}<button type="button" data-exun="${esc(h)}" data-exi="${i}" aria-label="Remove ${esc(h)}">×</button></span>`).join("") || `<span class="msph">Choose strategy…</span>`}<i>▾</i></div>${dd === "ex" + i ? `<div class="mslist">${rest.length ? rest.map((o) => `<button type="button" data-exhow="${esc(o)}" data-exi="${i}">${esc(o)}</button>`).join("") : `<span class="msph">All used</span>`}</div>` : ""}</div>`; })())}<button type="button" class="lnk" data-exdel="${i}" title="Remove this exit">×</button></div></div>`).join("")}
         <div><button type="button" class="btn ghost sm" data-act="exadd">+ Add exit</button></div>
         <p class="hint" data-exsum>${esc(exSumText())}</p>
         ${f("Notes", `<textarea data-k="notes" rows="3">${esc(D.notes)}</textarea>`)}`; } };
@@ -378,7 +379,7 @@
   });
   root.addEventListener("click", async (e) => {
     const box = e.target.closest("[data-dd]");
-    if (box && !e.target.closest("[data-unw],[data-und]")) { dd = dd === box.dataset.dd ? null : box.dataset.dd; return render(); }
+    if (box && !e.target.closest("[data-unw],[data-und],[data-exun]")) { dd = dd === box.dataset.dd ? null : box.dataset.dd; return render(); }
     if (dd && !e.target.closest(".mslist")) { dd = null; render(); }
     const t = e.target.closest("button"); if (!t) return;
     const d = t.dataset;
@@ -407,7 +408,8 @@
       const pct = nx ? nx[1] : Math.max(0, Math.round((100 - soldPct) * 100) / 100);
       D.sExits = [...(D.sExits || []), { pct: LIVE() ? null : pct || null, shares: LIVE() && D.sShares ? Math.floor(+D.sShares * pct / 100) || null : null, price: null, date: new Date().toISOString().slice(0, 10), hows: nx ? [nx[0]] : [] }]; keep(); return render(); }
     if (d.exdel != null) { D.sExits = (D.sExits || []).filter((_, i) => i !== +d.exdel); keep(); return render(); }
-    if (d.exhow != null) { const x = (D.sExits || [])[+d.exi]; if (x) { const h = x.hows || []; x.hows = h.includes(d.exhow) ? h.filter((v) => v !== d.exhow) : [...h, d.exhow]; keep(); } return render(); }
+    if (d.exhow != null) { const x = (D.sExits || [])[+d.exi]; if (x) { const h = x.hows || []; if (!h.includes(d.exhow)) x.hows = [...h, d.exhow]; keep(); } dd = null; return render(); }
+    if (d.exun != null) { const x = (D.sExits || [])[+d.exi]; if (x) { x.hows = (x.hows || []).filter((v) => v !== d.exun); keep(); } return render(); }
     if (d.act === "next") return next();
     if (d.act === "back") return goStep(step - 1);
     if (d.act === "skip") { msg = ""; return goStep(step + 1); }
@@ -497,7 +499,7 @@
   .chips{display:flex;flex-wrap:wrap;gap:4px}
   .ms{position:relative}.msbox{min-height:34px;display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:4px 22px 4px 5px;border:1px solid var(--line);border-radius:7px;background:var(--in);cursor:pointer;position:relative}
   .msbox i{position:absolute;right:7px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--mut);font-size:11px}.msph{color:var(--mut);font-size:12.5px;padding:2px 3px}
-  .mchip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 3px 2px 7px;font-size:12px}.mchip.for{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}.mchip.against{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+  .mchip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 3px 2px 7px;font-size:12px}.mchip{background:color-mix(in srgb,var(--acc) 16%,transparent);color:var(--ink)}.mchip.for{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}.mchip.against{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
   .mchip button{background:none;border:0;color:inherit;cursor:pointer;font-size:13px;line-height:1;padding:0 3px}
   .mslist{margin-top:3px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px;display:grid;box-shadow:0 10px 30px rgba(0,0,0,.4);max-height:220px;overflow:auto}
   .mslist button{background:none;border:0;color:var(--ink);text-align:left;padding:7px 9px;border-radius:6px;font-size:13px;cursor:pointer}.mslist button:hover{background:var(--soft)}
@@ -518,7 +520,7 @@
   .lnk.ext{justify-self:start;color:var(--acc);text-decoration:none;font-weight:600;font-size:12.5px}
   .ic{width:13px;height:13px;vertical-align:-2px;margin-right:5px;color:var(--acc)}.btn .ic{flex:none}.mkrow{display:flex}.mkt{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:9px;background:var(--bg)}.mkt button{border:0;background:none;color:var(--mut);font:600 13px inherit;font-family:inherit;padding:5px 12px;border-radius:6px;cursor:pointer}.mkt button.on{background:var(--ink);color:var(--in)}.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-top:-2px}.tab{display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;color:var(--mut);font:600 14px inherit;font-family:inherit;padding:8px 12px;cursor:pointer}.tab i{width:9px;height:9px;border-radius:50%}.tab.live i{background:var(--live)}.tab.backtest i{background:var(--acc)}.tab.on{color:var(--ink)}.tab.live.on{border-bottom-color:var(--live)}.tab.backtest.on{border-bottom-color:var(--acc)}
   .tgw{display:grid;gap:6px;margin-top:4px;padding:8px 9px;border:1px solid var(--line);border-radius:9px;background:color-mix(in srgb,var(--in) 55%,transparent)}.tgl{font-size:11px;font-weight:600;color:var(--mut)}.tgs{display:flex;flex-wrap:wrap;gap:6px}.tg{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:none;color:var(--mut);border-radius:999px;padding:4px 10px 4px 7px;font-size:12px;cursor:pointer}.tg i{width:10px;height:10px;border-radius:3px;opacity:.45}.tg.on{color:var(--ink);border-color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}.tg.on i{opacity:1}
-   .exr{display:grid;gap:6px;padding:8px;border:1px solid var(--line);border-radius:9px}.exr .row3{grid-template-columns:minmax(0,.8fr) minmax(0,.9fr) minmax(0,1.35fr)}.exr input{min-width:0;width:100%}.exr input[type=date]{padding-left:6px;padding-right:2px;font-size:12px}.exh{display:flex;gap:6px;align-items:flex-start}.exh .segs{flex:1;flex-wrap:wrap}.exh .sg{font-size:11.5px;padding:4px 8px}.exh .lnk{font-size:16px;text-decoration:none}
+   .exr{display:grid;gap:6px;padding:8px;border:1px solid var(--line);border-radius:9px}.exr .row3{grid-template-columns:minmax(0,.8fr) minmax(0,.9fr) minmax(0,1.35fr)}.exr input{min-width:0;width:100%}.exr input[type=date]{padding-left:6px;padding-right:2px;font-size:12px}.exh{display:flex;gap:6px;align-items:flex-end}.exh > .f{flex:1;min-width:0}.exh .lnk{font-size:16px;text-decoration:none}
   .ttl{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}.sw{display:flex;gap:8px}.swb{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:inset 0 0 0 2px var(--bg)}.swb.on{border-color:var(--ink)}.chk{display:flex;gap:8px;align-items:flex-start;cursor:pointer;font-size:12.5px;margin-top:4px}.chk input{width:auto;margin-top:2px;accent-color:var(--acc)}.chk small{display:block;color:var(--mut);font-size:11.5px;margin-top:2px}
   .btn.big{padding:11px 14px;font-size:14px}.idle{gap:12px}
   .msg{margin:0;font-size:12px;color:var(--ink);line-height:1.4}
