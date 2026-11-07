@@ -25,7 +25,7 @@ To update: replace the folder with the new version (or `git pull` if you cloned 
 
 ## Using it in bar replay
 
-Click the logo, then **＋ Log trade**. The panel walks you through the trade:
+Click the logo, then **+** (New trade). The panel walks you through the trade:
 
 1. **Trade**: project, pair and direction (the pair is read from the chart).
 2. **Weekly**: the chart switches to 1W. Position it, fill in the weekly analysis, click **📷 Continue**.
@@ -36,6 +36,8 @@ Click the logo, then **＋ Log trade**. The panel walks you through the trade:
 **Long / Short Position tool:** draw it at the entry candle and stretch its right edge to the candle where the trade closed.
 The panel takes direction, entry date and close date from it (the one selected on the chart, otherwise the one picked under **Position** on the first step, otherwise the one with the latest entry).
 It only fills empty fields, so you can still change the dates; **⟳ from chart** reads them again.
+
+On the start screen, **⏩ Max 1 day** / **⏩ Max 1 week** switch the chart to 4H and skip to the next candle that touches one of your drawings, for at most a day or a week.
 
 **⏩ Forward to drawing** (4H and 1H/2H steps, in bar replay): steps the replay forward until a candle touches a horizontal line or rectangle, max 300 candles, **■ Stop** to stop. In ⚙ → Replay you can add your templates (select a drawing, **Use the selected drawing's style**) so it only stops at those.
 

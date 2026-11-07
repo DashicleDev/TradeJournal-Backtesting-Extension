@@ -137,14 +137,17 @@
       // drawings the current candle already touches don't count
       let watch = pick().filter((L) => !touches(bar, L));
       if (!watch.length) return say({ done: true, why: sigs.length ? "No lines or rectangles in your trigger styles ahead of price." : "No horizontal lines or rectangles ahead of price." });
+      const start = bar[0], maxSec = e.data.maxSec || 0;
       for (let n = 1; n <= max; n++) {
         if (fwdStop) return say({ done: true, why: `Stopped after ${n - 1} candles.` });
         const t = bar[0]; rp.doStep();
         let nb = null; for (let i = 0; i < 60; i++) { await new Promise((r) => setTimeout(r, 50)); const b = lastBar(); if (b && b[0] !== t) { nb = b; break; } }
         if (!nb) return say({ done: true, why: `No new candle came in (after ${n - 1}). Is the replay at the end?` });
         bar = nb; say({ n });
+        if (maxSec && bar[0] - start > maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"}.` });
         const hit = watch.find((L) => (!isFinite(L.t0) || L.t0 <= bar[0]) && touches(bar, L));
         if (hit) return say({ done: true, hit: true, n, why: `Price hit the ${hit.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
+        if (maxSec && bar[0] - start >= maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"} (${n} candles).` });
       }
       say({ done: true, why: `No hit in ${max} candles.` });
     } catch (err) { say({ done: true, why: "Couldn't forward the replay: " + String((err && err.message) || err) }); }
