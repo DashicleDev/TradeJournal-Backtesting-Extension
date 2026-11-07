@@ -43,6 +43,8 @@
   root.addEventListener("pointerdown", (e) => { const h = e.target.closest(".head"); if (!h || e.target.closest("button")) return; const r = host.getBoundingClientRect(); drag = { dx: e.clientX - r.left, dy: e.clientY - r.top }; h.setPointerCapture(e.pointerId); });
   root.addEventListener("pointermove", (e) => { if (!drag) return; const x = Math.max(0, Math.min(innerWidth - 80, e.clientX - drag.dx)), y = Math.max(0, Math.min(innerHeight - 40, e.clientY - drag.dy)); Object.assign(host.style, { left: x + "px", top: y + "px", right: "auto" }); });
   root.addEventListener("pointerup", () => { if (drag) { drag = null; store({ pos: { left: host.style.left, top: host.style.top } }); } });
+  const fit = () => { panel.style.maxHeight = Math.max(260, innerHeight - host.getBoundingClientRect().top - 12) + "px"; };
+  addEventListener("resize", fit); root.addEventListener("pointerup", fit);
 
   /* ---------- page info (symbol, interval, replay date) ---------- */
   let info = {};
@@ -215,6 +217,8 @@
     <div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb"><button type="button" class="btn pri" data-act="save" ${busy ? "disabled" : ""}>${busy ? "Saving…" : "Save trade"}</button><button type="button" class="btn ghost" data-act="clear">Clear</button><span class="sp"></span><button type="button" class="lnk" data-act="logout" title="${esc(user.email)}">Sign out</button></div></div>`;
     }
     const b = panel.querySelector(".body"); if (b) b.scrollTop = top;
+    fit();
+    const ls = panel.querySelector(".mslist"); if (ls) ls.scrollIntoView({ block: "nearest" });
   }
 
   /* ---------- events ---------- */
@@ -283,7 +287,7 @@
   *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif}
   .pill{position:fixed;right:16px;bottom:80px;width:46px;height:46px;border-radius:12px;border:0;padding:0;background:none;cursor:grab;box-shadow:0 6px 20px rgba(0,0,0,.4);touch-action:none;overflow:hidden}.pill:active{cursor:grabbing}.pill img{width:100%;height:100%;display:block;pointer-events:none;user-select:none}
   [hidden]{display:none!important}
-  .panel{width:360px;max-height:calc(100vh - 100px);display:flex;flex-direction:column;background:#121624;color:#e8ebf5;border:1px solid #2a3046;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.45);font-size:13px;overflow:hidden}
+  .panel{width:360px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;background:#121624;color:#e8ebf5;border:1px solid #2a3046;border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.45);font-size:13px;overflow:hidden}
   .head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid #2a3046;cursor:move;user-select:none}
   .head b{font-size:14px}.who{font-size:11px;color:#8d94ad;text-transform:uppercase;letter-spacing:.05em}.x{margin-left:auto;background:none;border:0;color:#8d94ad;font-size:18px;cursor:pointer;line-height:1;padding:2px 6px;border-radius:6px}.x:hover{background:#222a40;color:#e8ebf5}.x2{margin-left:0}.panel.mini{width:auto;min-width:220px}.panel.mini .head{border-bottom:0}
   .body{overflow-y:auto;overflow-x:hidden;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
@@ -304,7 +308,7 @@
   .msbox i{position:absolute;right:7px;top:50%;transform:translateY(-50%);font-style:normal;color:#8d94ad;font-size:11px}.msph{color:#8d94ad;font-size:12.5px;padding:2px 3px}
   .mchip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 3px 2px 7px;font-size:12px}.mchip.for{background:rgba(59,189,133,.18);color:#7fe0b4}.mchip.against{background:rgba(229,83,75,.16);color:#ff9a93}
   .mchip button{background:none;border:0;color:inherit;cursor:pointer;font-size:13px;line-height:1;padding:0 3px}
-  .mslist{position:absolute;z-index:5;left:0;right:0;top:calc(100% + 3px);background:#161b2b;border:1px solid #2a3046;border-radius:8px;padding:4px;display:grid;box-shadow:0 10px 30px rgba(0,0,0,.4);max-height:220px;overflow:auto}
+  .mslist{margin-top:3px;background:#161b2b;border:1px solid #2a3046;border-radius:8px;padding:4px;display:grid;box-shadow:0 10px 30px rgba(0,0,0,.4);max-height:220px;overflow:auto}
   .mslist button{background:none;border:0;color:#e8ebf5;text-align:left;padding:7px 9px;border-radius:6px;font-size:13px;cursor:pointer}.mslist button:hover{background:#222a40}
   .chip{border:1px solid #2a3046;background:#0b0e17;color:#cfd4e6;border-radius:999px;padding:4px 9px;font-size:12px;cursor:pointer}
   .chip.for{background:rgba(59,189,133,.18);border-color:#3bbd85;color:#7fe0b4}.chip.against{background:rgba(229,83,75,.16);border-color:#e5534b;color:#ff9a93}
