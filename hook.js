@@ -147,17 +147,21 @@
         if (fwdStop) return say({ done: true, why: `Stopped after ${n - 1} candles.` });
         const t = bar[0], sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         try { const pr = rp.doStep(); if (pr && pr.then) await Promise.race([pr, sleep(1500)]); } catch {}
-        let nb = null; for (let i = 0; i < 150; i++) { const b = lastBar(); if (b && b[0] !== t) { nb = b; break; } await sleep(20); }
+        // wait for the next candle; over a weekend gap TradingView can take a while, so step again once if nothing comes
+        let nb = null; for (let i = 0; i < 400; i++) { const b = lastBar(); if (b && b[0] !== t) { nb = b; break; } if (i === 150) { try { rp.doStep(); } catch {} } await sleep(20); }
         if (!nb) return say({ done: true, why: `No new candle came in (after ${n - 1}). Is the replay at the end?` });
-        // a new candle first shows only its open (high = low): wait for its real high / low, then a short settle
-        for (let i = 0; i < 100 && nb[2] === nb[3]; i++) { await sleep(20); const b = lastBar(); if (b && b[0] === nb[0]) nb = b; }
-        let same = 0, key = nb.join(); for (let i = 0; i < 15 && same < 2; i++) { await sleep(25); const b = lastBar(); const k = b ? b.join() : key; if (k === key) same++; else { same = 0; key = k; nb = b; } }
         bar = nb; say({ n });
         if (maxSec && bar[0] - start > maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"}.` });
         // check the new candle and the one before it (with its final high / low)
         const pb = prevBar(), cands = [pb, bar].filter((b) => b && b[0] > start);
         const hit = watch.find((L) => cands.some((b) => (!isFinite(L.t0) || L.t0 <= b[0]) && touches(b, L)));
         if (hit) return say({ done: true, hit: true, n, why: `Price hit the ${hit.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` });
+        if (until && bar[0] + 14400 >= until) {
+          // last candle before the close: let it fill in, then check it properly
+          for (let i = 0; i < 100 && bar[2] === bar[3]; i++) { await sleep(20); const b = lastBar(); if (b && b[0] === bar[0]) bar = b; }
+          await sleep(120); { const b = lastBar(); if (b && b[0] === bar[0]) bar = b; }
+          const h2 = watch.find((L) => (!isFinite(L.t0) || L.t0 <= bar[0]) && touches(bar, L));
+          if (h2) return say({ done: true, hit: true, n, why: `Price hit the ${h2.name === "rectangle" ? "rectangle" : "line"} after ${n} candle${n === 1 ? "" : "s"}.` }); }
         if (until && bar[0] + 14400 >= until) return say({ done: true, why: `No hit before the ${e.data.until === "W" ? "weekly" : "daily"} close (${n} candle${n === 1 ? "" : "s"}).` });
         if (maxSec && bar[0] - start >= maxSec) return say({ done: true, why: `No hit within ${e.data.span || "the limit"} (${n} candles).` });
       }
