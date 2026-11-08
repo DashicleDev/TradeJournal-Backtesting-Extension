@@ -14,6 +14,15 @@ trades (from bar replay) and live trades straight into your [Trade Journal](http
 It is separate from the journal: it only writes trades in the journal's normal format.
 The field lists come from the journal's `plan.json`, so new options show up here automatically.
 
+## How it works
+
+A Manifest V3 extension for Chromium browsers, in plain JavaScript:
+
+- `content.js`: the panel. It is injected into the TradingView chart page and walks you through the trade step by step.
+- `hook.js`: runs in the page itself and only picks up TradingView's own snapshot links, so they can be stored with the trade.
+- `bg.js`: the service worker. It handles the toolbar button, the stored session and reloading after an update.
+- It signs in with the same Supabase account as the journal and writes to the same database, so row-level security keeps each user's trades private.
+
 ## Install (Edge, Chrome, Brave, Opera)
 
 1. Download and unzip this folder.
