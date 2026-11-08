@@ -3,6 +3,11 @@
 A browser extension that adds a small panel to TradingView, so you can log backtest
 trades (from bar replay) and live trades straight into your [Trade Journal](https://dashicledev.github.io/TradeJournal/).
 
+<p>
+  <img src="docs/panel-on-chart.png" alt="The Trade Journal panel on a TradingView chart" width="72%">
+  <img src="docs/panel.png" alt="The panel's weekly analysis step" width="26%">
+</p>
+
 - Same fields as the journal's trade form: phase, inner/outer, trend, MS, ranging,
   pattern, pros/cons, daily, 4H, result, notes.
 - 📷 per timeframe (Weekly, Daily, 4H, 1H/2H): takes a TradingView snapshot
