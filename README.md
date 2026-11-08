@@ -1,4 +1,4 @@
-# Trade Journal for TradingView
+# Trade Journal Extension for TradingView
 
 A browser extension that adds a small panel to TradingView, so you can log backtest
 trades (from bar replay) and live trades straight into your [Trade Journal](https://dashicledev.github.io/TradeJournal/).
