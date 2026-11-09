@@ -407,7 +407,6 @@ function renderInner() {
       ST = [
         ["chart", "Chart"],
         ["replay", "Replay"],
-        ["alerts", "Alerts"],
         ["look", "Look"],
         ["account", "Account"],
       ];
@@ -415,10 +414,6 @@ function renderInner() {
     const tb = {
       chart: () =>
         `<label class="chk"><input type="checkbox" data-set="autoFit" ${autoFit ? "checked" : ""}><span>Fit chart after switching timeframe<small>Turns Auto (price scale) on and off, so the chart fits the screen.</small></span></label>`,
-      alerts: () =>
-        `<p class="hint">A notification on your computer when the forex candle closes (17:00 New York, ${esc(closeLocal())} your time). It comes from the browser, so TradingView doesn't have to be open.</p>
-        <label class="chk"><input type="checkbox" data-set="notifyD" ${notify.d ? "checked" : ""}><span>Daily close<small>Monday to Friday.</small></span></label>
-        <label class="chk"><input type="checkbox" data-set="notifyW" ${notify.w ? "checked" : ""}><span>Weekly close<small>Friday.</small></span></label>`,
       look: () => `<label class="chk"><input type="checkbox" data-set="match" ${look.match ? "checked" : ""}><span>Same look as my journal<small>Uses the theme and accent colour from your journal's settings.</small></span></label>
       ${f(
         "Theme",
@@ -436,7 +431,11 @@ function renderInner() {
       )}
       ${f("Accent colour", `<div class="sw">${ACCENTS.map(([k, l, c1, c2]) => `<button type="button" class="swb${L.accent === k ? " on" : ""}" data-look="accent" data-v="${k}" title="${l}" aria-label="${l}" style="background:${c2}"></button>`).join("")}</div>`)}`,
       replay:
-        () => `<p class="hint">The skip buttons on the start screen step the replay until price touches a horizontal line or rectangle. Add your templates here so they only stop at those.</p>
+        () => `<p class="hint">In bar replay, show a notice when a candle closes the day or week (17:00 New York).</p>
+        <label class="chk"><input type="checkbox" data-set="notifyD" ${closes.d ? "checked" : ""}><span>Daily close<small>On the 4H chart and lower.</small></span></label>
+        <label class="chk"><input type="checkbox" data-set="notifyW" ${closes.w ? "checked" : ""}><span>Weekly close<small>On the Daily, 4H and lower charts.</small></span></label>
+        <hr>
+        <p class="hint">The skip buttons on the start screen step the replay until price touches a horizontal line or rectangle. Add your templates here so they only stop at those.</p>
         ${trig.length ? `<div class="trl">${trig.map((t, i) => `<div class="tr" data-tri="${i}"><span class="grip" draggable="true" data-grip="${i}" title="Drag to reorder">⋮⋮</span><i style="background:${esc(t.color || "transparent")}"></i><input type="text" class="trn" data-trn="${i}" value="${esc(t.label || "")}" placeholder="${t.name === "rectangle" ? "Rectangle" : t.name === "horizontal_ray" ? "Horizontal ray" : "Horizontal line"}" aria-label="Name"><em>${t.name === "rectangle" ? "Rectangle" : t.name === "horizontal_ray" ? "Ray" : "Line"}</em><button type="button" class="lnk" data-rmtrig="${i}" title="Remove">×</button></div>`).join("")}</div>` : `<p class="hint">No styles yet, so it stops at any horizontal line or rectangle.</p>`}
         <div><button type="button" class="btn ghost sm" data-act="trigadd">＋ Use the selected drawing's style</button></div>
         ${msg ? `<p class="msg">${esc(msg)}</p>` : ""}`,

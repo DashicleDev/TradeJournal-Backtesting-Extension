@@ -7,9 +7,10 @@ const host = document.createElement("div");
 host.id = "tj-panel-host";
 host.style.cssText = "position:fixed;z-index:2147483000;top:72px;right:16px;";
 const root = host.attachShadow({ mode: "open" });
-root.innerHTML = `<style>${CSS()}</style><button class="pill" title="Trade Journal (drag to move)"><img src="${chrome.runtime.getURL("icons/icon-128.png")}" alt="Trade Journal" draggable="false"></button><section class="panel" hidden></section>`;
+root.innerHTML = `<style>${CSS()}</style><button class="pill" title="Trade Journal (drag to move)"><img src="${chrome.runtime.getURL("icons/icon-128.png")}" alt="Trade Journal" draggable="false"></button><section class="panel" hidden></section><div class="toast" role="status" aria-live="polite" hidden></div>`;
 const panel = root.querySelector(".panel"),
-  pill = root.querySelector(".pill");
+  pill = root.querySelector(".pill"),
+  toast = root.querySelector(".toast");
 document.documentElement.appendChild(host);
 // the journal's font (Archivo), shipped with the extension, so the page's rules can't block it
 fetch(chrome.runtime.getURL("fonts/archivo.woff2"))
@@ -205,3 +206,24 @@ function arm(slot) {
   } else msg = "";
   render();
 }
+
+/* ---------- candle-close notices in bar replay (hook.js reports each close) ---------- */
+let toastT;
+window.addEventListener("message", e => {
+  if (e.source !== window || !e.data || e.data.__tj !== "close") return;
+  const w = e.data.w && closes.w,
+    d = e.data.d && closes.d;
+  if (!w && !d) return;
+  const when = new Date(e.data.t * 1000).toLocaleDateString(undefined, {
+    timeZone: "America/New_York",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  toast.innerHTML = `<b>${w ? "Weekly candle closed" : "Daily candle closed"}</b><small>${esc(when)} · 17:00 New York</small>`;
+  toast.className = "toast" + (w ? " wk" : "");
+  toast.hidden = false;
+  clearTimeout(toastT);
+  toastT = setTimeout(() => (toast.hidden = true), 4000);
+});
+toast.addEventListener("click", () => (toast.hidden = true));

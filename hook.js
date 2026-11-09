@@ -12,6 +12,7 @@
  *   fwd      skip in bar replay        fwdst (progress / result)
  *   fwdstop  stop skipping
  *                                      snap  (a TradingView snapshot link was created)
+ *                                      close (replay reached a daily / weekly close)
  *
  * It only reads the chart and drives TradingView's own controls; it never sends anything to the network.
  */
@@ -426,6 +427,38 @@
     }
     return 0;
   };
+  // ---------- candle-close notices in bar replay ----------
+  // Every 300 ms: if a new candle appeared (replay stepped forward) and it ends at 17:00 New York on a
+  // weekday, tell the panel. Intraday charts report daily closes (and weekly on Friday); the daily chart
+  // only Friday's, for the weekly close. Scrolling, switching timeframe or jumping in time reports nothing.
+  let seen = { k: "", t: 0 };
+  setInterval(async () => {
+    try {
+      if (!window.TradingViewApi) return;
+      const rp = await (window.__tjRp || (window.__tjRp = window.TradingViewApi.replayApi()));
+      if (!rp.isReplayStarted().value()) return void (seen.k = "");
+      const ch = chartApi(),
+        res = String(ch.resolution()),
+        k = ch.symbol() + "|" + res,
+        b = lastBar();
+      if (!b) return;
+      if (seen.k !== k || b[0] < seen.t) return void (seen = { k, t: b[0] });
+      if (b[0] === seen.t) return;
+      const jump = b[0] - seen.t > 4 * 86400;
+      seen.t = b[0];
+      if (jump) return;
+      const min = /^\d+$/.test(res) ? +res : 0,
+        daily = /^1?D$/i.test(res);
+      if (min > 240 || (!min && !daily)) return;
+      const end = min ? b[0] + min * 60 : nextClose(b[0], "D"),
+        q = nyParts(end);
+      if (q.h !== 17 || q.m !== 0 || q.wd === "Sat" || q.wd === "Sun") return;
+      const w = q.wd === "Fri";
+      if (daily && !w) return;
+      window.postMessage({ __tj: "close", t: end, w, d: !!min }, location.origin);
+    } catch {}
+  }, 300);
+
   let fwdStop = false,
     fwdBack = "";
   window.addEventListener("message", async e => {

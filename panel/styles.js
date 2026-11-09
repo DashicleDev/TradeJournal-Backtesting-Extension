@@ -5,6 +5,9 @@ function CSS() {
   return `
 :host{all:initial}
 *{box-sizing:border-box;font-family:"TJ Archivo",Archivo,system-ui,-apple-system,Segoe UI,sans-serif}
+.toast{--bg:#161a2d;--ink:#e6e8f3;--mut:#9299b8;--line:#283050;--acc:#8590ff;position:fixed;top:14px;left:50%;transform:translateX(-50%);display:grid;gap:2px;padding:10px 18px 10px 16px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:10px;box-shadow:0 12px 34px rgba(0,0,0,.45);font-size:14px;cursor:pointer;animation:tjin .18s ease-out}.toast[hidden]{display:none}.toast b{font-weight:700}.toast small{color:var(--mut);font-size:12px}.toast.wk{border-left-color:var(--live,#f08c4c)}
+@keyframes tjin{from{opacity:0;transform:translate(-50%,-6px)}to{opacity:1;transform:translateX(-50%)}}
+.panel hr{border:0;border-top:1px solid var(--line);margin:10px 0;width:100%}
 .pill{position:fixed;right:16px;bottom:80px;width:46px;height:46px;border-radius:12px;border:0;padding:0;background:none;cursor:grab;box-shadow:0 6px 20px rgba(0,0,0,.4);touch-action:none;overflow:hidden}.pill:active{cursor:grabbing}.pill img{width:100%;height:100%;display:block;pointer-events:none;user-select:none}
 [hidden]{display:none!important}
 .panel{--live:#f08c4c;--bg:#161a2d;--in:#0e1120;--ink:#e6e8f3;--mut:#9299b8;--line:#283050;--soft:#1d2238;--good:#43c088;--bad:#f06c60;--acc:#8590ff;width:360px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.45);font-size:13px;overflow:hidden}

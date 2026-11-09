@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1 — 2026-11-09
+
+- **Close notices are for bar replay now**, not the real-time clock: while you step or skip in replay, a notice shows when a candle closes the day (on 4H and lower) or the week (also on the Daily chart). Turn them on or off in Settings → Replay. The Alerts tab and the extra browser permissions are gone again.
+
 ## 1.1.0 — 2026-11-09
 
 - **Alerts:** new Settings → Alerts tab with a notification when the daily and/or weekly forex candle closes (17:00 New York). It comes from the browser, so TradingView doesn't have to be open. Needs the new "alarms" and "notifications" permissions.

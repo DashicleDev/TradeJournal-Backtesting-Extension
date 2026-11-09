@@ -32,13 +32,13 @@ flowchart LR
 |---|---|---|---|
 | `hook.js` | the TradingView page itself (`"world": "MAIN"`) | only the page can reach `window.TradingViewApi` | reads symbol, timeframe, replay date, Long/Short positions and drawing styles; switches timeframe; steps bar replay; toggles auto scale; catches snapshot links |
 | `panel/*.js` | the extension's isolated world | can use extension APIs and stays out of TradingView's scripts | the UI: start screen, step-by-step logging, settings |
-| `bg.js` | the extension's service worker | the only part that talks to the network, and it keeps running without a chart open | sign-in, loading projects/accounts/settings, saving trades, fetching `plan.json`, reload after update, candle-close notifications (`chrome.alarms` + `chrome.notifications`) |
+| `bg.js` | the extension's service worker | the only part that talks to the network | sign-in, loading projects/accounts/settings, saving trades, fetching `plan.json`, reload after update |
 
 The panel lives in a shadow root, so TradingView's CSS and the panel's CSS never affect each other. It ships its own font for the same reason.
 
 ## Messages
 
-**Panel ↔ hook** use `window.postMessage` with a `__tj` field (see the table at the top of `hook.js`): `ask`/`info` for chart info, `tf`/`tfok` to switch timeframe, `pos`/`posinfo` and `posshow`/`posshown` for Long/Short positions, `sig`/`sigok` to read a drawing's style, `fwd`/`fwdst`/`fwdstop` to skip in bar replay, and `snap` when TradingView creates a snapshot link.
+**Panel ↔ hook** use `window.postMessage` with a `__tj` field (see the table at the top of `hook.js`): `ask`/`info` for chart info, `tf`/`tfok` to switch timeframe, `pos`/`posinfo` and `posshow`/`posshown` for Long/Short positions, `sig`/`sigok` to read a drawing's style, `fwd`/`fwdst`/`fwdstop` to skip in bar replay, `snap` when TradingView creates a snapshot link, and `close` when bar replay reaches a daily or weekly close (the panel then shows a notice).
 
 **Panel → background** use `chrome.runtime.sendMessage({type, ...})` through the `call()` helper in `panel/core.js`, : `status`, `login`, `logout`, `plan`, `projects`, `accounts`, `jsettings` (the journal's look), `extLoad`/`extSave` (extension settings), `save` (a trade) and `reload`.
 

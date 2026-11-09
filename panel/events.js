@@ -325,8 +325,8 @@ root.addEventListener("change", async e => {
     return;
   }
   if (e.target.dataset && (e.target.dataset.set === "notifyD" || e.target.dataset.set === "notifyW")) {
-    notify = { ...notify, [e.target.dataset.set === "notifyD" ? "d" : "w"]: e.target.checked };
-    saveSet({ notify });
+    closes = { ...closes, [e.target.dataset.set === "notifyD" ? "d" : "w"]: e.target.checked };
+    saveSet({ closes });
     return;
   }
   if (e.target.dataset && e.target.dataset.set === "autoFit") {

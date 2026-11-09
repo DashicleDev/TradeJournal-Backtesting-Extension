@@ -85,7 +85,7 @@ let mkt = "fx",
   tfPrev = "",
   skipBack = "",
   autoFit = true,
-  notify = { d: false, w: false },
+  closes = { d: true, w: true },
   settings = false,
   setTab = "chart",
   trig = [],
@@ -152,8 +152,8 @@ function applyLook() {
           : "dark";
   const a = ACCENTS.find(x => x[0] === L.accent) || ACCENTS[0],
     v = { ...THEMES[th], acc: th === "light" ? a[2] : a[3], live: th === "light" ? "#d0601b" : "#f08c4c" };
-  Object.entries(v).forEach(([k, c]) => panel.style.setProperty("--" + k, c));
-  panel.style.colorScheme = th === "light" ? "light" : "dark";
+  Object.entries(v).forEach(([k, c]) => (panel.style.setProperty("--" + k, c), toast.style.setProperty("--" + k, c)));
+  panel.style.colorScheme = toast.style.colorScheme = th === "light" ? "light" : "dark";
 }
 async function loadJLook() {
   try {
@@ -166,28 +166,13 @@ async function loadJLook() {
   applyLook();
 }
 
-/* 17:00 New York in the viewer's own time zone, e.g. "23:00" */
-const closeLocal = () => {
-  const now = new Date();
-  for (let h = 0; h < 48; h++) {
-    const t = new Date(Math.floor(now / 36e5) * 36e5 + h * 36e5);
-    const ny = new Intl.DateTimeFormat("en-US", {
-      timeZone: "America/New_York",
-      hour: "numeric",
-      hourCycle: "h23",
-    }).format(t);
-    if (+ny === 17) return t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-  return "";
-};
-
 /* ---------- settings: kept in this browser and in your journal account ---------- */
 let setT;
 const saveSet = o => {
   store(o);
   clearTimeout(setT);
   setT = setTimeout(() => {
-    if (user) call("extSave", { data: { autoFit, look, trig, notify } }).catch(() => {});
+    if (user) call("extSave", { data: { autoFit, look, trig, closes } }).catch(() => {});
   }, 600);
 };
 async function loadSet() {
@@ -197,10 +182,10 @@ async function loadSet() {
       if (typeof r.autoFit === "boolean") autoFit = r.autoFit;
       if (r.look) look = { ...look, ...r.look };
       if (Array.isArray(r.trig)) trig = r.trig;
-      if (r.notify) notify = { d: !!r.notify.d, w: !!r.notify.w };
-      store({ autoFit, look, trig, notify });
+      if (r.closes) closes = { d: !!r.closes.d, w: !!r.closes.w };
+      store({ autoFit, look, trig, closes });
       applyLook();
-    } else call("extSave", { data: { autoFit, look, trig, notify } }).catch(() => {}); // first time: put this browser's settings in the account
+    } else call("extSave", { data: { autoFit, look, trig, closes } }).catch(() => {}); // first time: put this browser's settings in the account
   } catch {}
 }
 
@@ -218,7 +203,7 @@ const load = async () => {
     "step",
     "logging",
     "autoFit",
-    "notify",
+    "closes",
     "look",
     "jLook",
     "trig",
@@ -233,7 +218,7 @@ const load = async () => {
   if (o.look) look = { ...look, ...o.look };
   if (o.jLook) jLook = o.jLook;
   autoFit = o.autoFit !== false;
-  if (o.notify) notify = { d: !!o.notify.d, w: !!o.notify.w };
+  if (o.closes) closes = { d: !!o.closes.d, w: !!o.closes.w };
   logging = !!o.logging;
   view = "steps";
   step = o.step || 0;

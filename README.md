@@ -54,6 +54,8 @@ Click the logo, then **+** (New trade). The panel walks you through the trade:
 The panel takes direction, entry date and close date from it (the one selected on the chart, otherwise the one picked under **Position** on the first step, otherwise the one with the latest entry).
 It only fills empty fields, so you can still change the dates; **⟳ from chart** reads them again.
 
+**Close notices:** while you step or skip in replay, a notice appears at the top of the chart when a candle closes the day (on the 4H chart and lower) or the week (also on the Daily chart). Turn them off in ⚙ → Replay.
+
 On the start screen, **⏩ Daily CC** / **⏩ Weekly CC** switch the chart to 4H and skip to the next candle that touches one of your drawings, at most until the daily or weekly candle closes (forex: 17:00 New York, weekly on Friday).
 
 While a skip runs, **■ Stop** stops it. In ⚙ → Replay you can add your templates (select a drawing, **Use the selected drawing's style**) so it only stops at those. A drawing matches a style when the tool, the colours and the text are the same (line width and capitals don't matter).
@@ -65,7 +67,6 @@ While a skip runs, **■ Stop** stops it. In ⚙ → Replay you can add your tem
 ## Settings (⚙)
 
 - **Fit chart after switching timeframe**: turns Auto (price scale) on and off after the panel switches timeframe.
-- **Alerts**: a notification when the daily and/or weekly candle closes (17:00 New York, Monday to Friday / Friday). Comes from the browser, so TradingView doesn't need to be open; the browser does.
 - **Same look as my journal**: uses the theme and accent colour from your journal. Untick it to pick your own.
 
 ## Settings sync
