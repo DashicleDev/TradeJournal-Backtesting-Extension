@@ -262,14 +262,14 @@ function chime(w) {
 }
 
 // On the start screen, follow the chart: pick Forex or Invest from the symbol's type (when that's on and no trade is
-// in progress) and keep the Invest "Analysed" line on the stock you're looking at.
+// in progress).
 const STOCKY = ["stock", "fund", "dr", "etf", "structured"];
 let autoSym = "";
 async function followChart() {
   if (panel.hidden || !user || view !== "steps" || logging || settings) return;
-  const was = info.symbol;
+  if (!autoMkt) return;
   await ask();
-  let changed = info.symbol !== was;
+  let changed = false;
   if (autoMkt && info.symbol && info.symbol !== autoSym && info.type) {
     autoSym = info.symbol;
     const want = STOCKY.includes(info.type) ? "stocks" : "fx",

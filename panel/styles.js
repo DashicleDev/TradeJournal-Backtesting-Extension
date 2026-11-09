@@ -20,12 +20,6 @@ function CSS() {
 @keyframes tjpulse{50%{transform:translateX(-50%) scale(1.06)}}
 .panel .f + .chk{margin-top:8px}
 .panel hr{border:0;border-top:1px solid var(--line);margin:10px 0;width:100%}
-.anl{display:grid;gap:6px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
-.anrow{display:flex;align-items:center;justify-content:space-between;gap:10px}.anrow span{display:grid;gap:1px;min-width:0}.anrow b{font-size:15px}.anrow small{color:var(--mut);font-size:11.5px}
-.anl .lnk{justify-self:start}
-.anlist{display:grid;gap:2px;margin-top:8px}
-.anit{all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:7px 8px;border-radius:7px}
-.anit:hover{background:var(--soft)}.anit:focus-visible{outline:2px solid var(--acc)}.anit b{font-size:13.5px}.anit small{color:var(--mut);font-size:11.5px;text-align:right}
 .pill{position:fixed;right:16px;bottom:80px;width:46px;height:46px;border-radius:12px;border:0;padding:0;background:none;cursor:grab;box-shadow:0 6px 20px rgba(0,0,0,.4);touch-action:none;overflow:hidden}.pill:active{cursor:grabbing}.pill img{width:100%;height:100%;display:block;pointer-events:none;user-select:none}
 [hidden]{display:none!important}
 .panel{--live:#f08c4c;--bg:#161a2d;--in:#0e1120;--ink:#e6e8f3;--mut:#9299b8;--line:#283050;--soft:#1d2238;--good:#43c088;--bad:#f06c60;--acc:#8590ff;width:360px;max-height:calc(100vh - 24px);display:flex;flex-direction:column;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.45);font-size:13px;overflow:hidden}

@@ -143,53 +143,6 @@ root.addEventListener("click", async e => {
     setTab = d.settab;
     return render();
   }
-  if (d.act === "anmark" || d.act === "anundo") {
-    const sym = info.symbol;
-    if (!sym) return;
-    try {
-      an[sym] = await call("anMark", { sym, date: isoDay(new Date()), undo: d.act === "anundo" });
-    } catch (er) {
-      msg = "Couldn't save: " + er.message;
-    }
-    return render();
-  }
-  if (d.act === "anlist") {
-    view = "an";
-    msg = "";
-    try {
-      an = Object.fromEntries((await call("anList")).map(x => [x.sym, x]));
-    } catch {}
-    return render();
-  }
-  if (d.act === "anback") {
-    view = "steps";
-    msg = "";
-    return render();
-  }
-  if (d.anage) {
-    anAge = d.anage;
-    return render();
-  }
-  if (d.ansym) {
-    window.postMessage({ __tj: "sym", sym: d.ansym }, location.origin);
-    info.symbol = d.ansym;
-    view = "steps";
-    msg = "";
-    return render();
-  }
-  if (d.act === "ancopy") {
-    try {
-      await navigator.clipboard.writeText(
-        anDue()
-          .map(x => x.sym)
-          .join(",")
-      );
-      msg = "Copied. In TradingView: watchlist menu → Import list, or paste into a watchlist.";
-    } catch {
-      msg = "Couldn't copy.";
-    }
-    return render();
-  }
   if (d.cl) {
     closes = { ...closes, [d.cl]: d.cl === "dur" ? +d.v : d.v };
     saveSet({ closes });

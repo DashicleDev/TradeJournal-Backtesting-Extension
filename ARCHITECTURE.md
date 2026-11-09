@@ -38,9 +38,9 @@ The panel lives in a shadow root, so TradingView's CSS and the panel's CSS never
 
 ## Messages
 
-**Panel ↔ hook** use `window.postMessage` with a `__tj` field (see the table at the top of `hook.js`): `ask`/`info` for chart info, `tf`/`tfok` to switch timeframe, `pos`/`posinfo` and `posshow`/`posshown` for Long/Short positions, `sig`/`sigok` to read a drawing's style, `fwd`/`fwdst`/`fwdstop` to skip in bar replay, `pause` to pause autoplay, `sym` to open a symbol, `snap` when TradingView creates a snapshot link, and `close` when bar replay reaches a daily or weekly close (the panel then shows a notice).
+**Panel ↔ hook** use `window.postMessage` with a `__tj` field (see the table at the top of `hook.js`): `ask`/`info` for chart info, `tf`/`tfok` to switch timeframe, `pos`/`posinfo` and `posshow`/`posshown` for Long/Short positions, `sig`/`sigok` to read a drawing's style, `fwd`/`fwdst`/`fwdstop` to skip in bar replay, `pause` to pause autoplay, `snap` when TradingView creates a snapshot link, and `close` when bar replay reaches a daily or weekly close (the panel then shows a notice).
 
-**Panel → background** use `chrome.runtime.sendMessage({type, ...})` through the `call()` helper in `panel/core.js`, : `status`, `login`, `logout`, `plan`, `projects`, `accounts`, `jsettings` (the journal's look), `extLoad`/`extSave` (extension settings), `anList`/`anMark` (analysed marks), `save` (a trade) and `reload`.
+**Panel → background** use `chrome.runtime.sendMessage({type, ...})` through the `call()` helper in `panel/core.js`, : `status`, `login`, `logout`, `plan`, `projects`, `accounts`, `jsettings` (the journal's look), `extLoad`/`extSave` (extension settings), `save` (a trade) and `reload`.
 
 ## The panel's files
 
@@ -59,7 +59,7 @@ They are plain content scripts loaded in order (see `manifest.json`); they share
 
 ## Data
 
-Trades are written to the journal's `docs` table in exactly the format the journal's own forms use, with the user's own session, so row-level security applies just as in the app. The extension's settings are a document of kind `extsettings` in the same table, so they follow the user to another browser. Analysed marks are one document per stock, kind `analysed`, holding the dates it was marked (`id` is `an_<symbol>`). The journal ignores both kinds. The field lists (concepts, criteria, exits) come from the journal's `plan.json`; `plan-default.js` is a built-in copy used only when that can't be fetched.
+Trades are written to the journal's `docs` table in exactly the format the journal's own forms use, with the user's own session, so row-level security applies just as in the app. The extension's settings are a document of kind `extsettings` in the same table, so they follow the user to another browser. The journal ignores this kind. The field lists (concepts, criteria, exits) come from the journal's `plan.json`; `plan-default.js` is a built-in copy used only when that can't be fetched.
 
 ## Skip to drawing (bar replay)
 

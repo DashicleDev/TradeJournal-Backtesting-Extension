@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1 — 2026-11-09
+
+- Removed the Analysed marks and the Stocks to revisit list from 1.3.0: with this many stocks a list of the ones you marked didn't help. Marks already saved stay in your account, unused.
+
 ## 1.4.0 — 2026-11-09
 
 - **Forex or Invest from the chart:** the panel switches by itself to Invest on stocks and ETFs, and to Forex on forex pairs, gold, indices and the rest (from TradingView's symbol type). It doesn't switch while a trade is in progress, and if you switch by hand that stays until you open another symbol. Turn it off in Settings → Chart.

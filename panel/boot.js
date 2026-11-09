@@ -15,9 +15,6 @@ async function boot() {
   try {
     accounts = await call("accounts");
   } catch {}
-  try {
-    an = Object.fromEntries((await call("anList")).map(d => [d.sym, d]));
-  } catch {}
   if (D.project && !projects.some(p => p.id === D.project)) D.project = "";
   loadJLook();
   loadSet();

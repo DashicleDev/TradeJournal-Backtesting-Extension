@@ -493,18 +493,6 @@ function renderInner() {
     panel.innerHTML = `${HEAD}<div class="stp">${ST.map(([k, l]) => `<button type="button" class="st${k === tab ? " on" : ""}" data-settab="${k}">${l}</button>`).join("")}</div>
     <div class="body idle">${tb[tab]()}</div>
     <div class="foot"><div class="fb"><button type="button" class="btn ghost" data-act="settings">Back</button></div></div>`;
-  } else if (view === "an") {
-    const list = anDue();
-    panel.innerHTML = `${HEAD}<div class="body idle">
-      <b class="ttl">Stocks to revisit</b>
-      ${f(anAge === "all" ? "Everything you've analysed" : "Not analysed in", `<div class="segs">${AN_AGES.map(([v, l]) => `<button type="button" class="sg${anAge === v ? " on" : ""}" data-anage="${v}">${l}</button>`).join("")}</div>`)}
-      ${
-        list.length
-          ? `<div class="anlist">${list.map(d => `<button type="button" class="anit" data-ansym="${esc(d.sym)}" title="Open ${esc(d.sym)} on the chart"><b>${esc(d.ticker)}</b><small>${anLast(d)}</small></button>`).join("")}</div>`
-          : `<p class="hint">${Object.keys(an).length ? "Everything you've analysed is up to date for this period." : "Nothing marked yet. Open a stock and click ✓ Mark analysed."}</p>`
-      }
-    </div>
-    <div class="foot">${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb"><button type="button" class="btn ghost" data-act="anback">Back</button><span class="sp"></span>${list.length ? `<button type="button" class="btn ghost" data-act="ancopy" title="Copy as a list you can import into a TradingView watchlist">Copy ${list.length} symbol${list.length === 1 ? "" : "s"}</button>` : ""}</div></div>`;
   } else if (view === "steps" && !logging) {
     const draft =
       (INV() ? D.sPhase || D.s12Ms || D.s6Ms : D.dir || D.fase || D.concept || D.entry4h) ||
@@ -535,7 +523,6 @@ function renderInner() {
         <div class="fb"><button type="button" class="btn pri" data-act="log">▶ Continue trade</button><button type="button" class="btn ghost" data-act="discard">Discard it</button></div>`
           : `<div class="newt"><button type="button" class="fab" data-act="log" aria-label="New trade" title="New trade">+</button><span><b>New trade</b><small>${INV() ? "12M, 6M, 3M, Monthly and Weekly" : "Weekly, Daily and 4H"}, grabbing each chart as you go.</small></span></div>`
       }
-      ${INV() ? anBlock() : ""}
       ${
         LIVE() || INV()
           ? ""
@@ -563,57 +550,4 @@ function renderInner() {
   fit();
   const ls = panel.querySelector(".mslist");
   if (ls) ls.scrollIntoView({ block: "nearest" });
-}
-
-/* ---------- "analysed" marks (invest): which stocks you've been through, and when ---------- */
-const AN_AGES = [
-  ["30", "30 days"],
-  ["q", "This quarter"],
-  ["h", "This half year"],
-  ["y", "This year"],
-  ["all", "Show all"],
-];
-const isoDay = d => new Date(d.getTime() - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10);
-const anLast = d => {
-  const last = d.dates[d.dates.length - 1];
-  if (!last) return "Not analysed yet";
-  const days = Math.round((new Date(isoDay(new Date())) - new Date(last)) / 864e5),
-    ago =
-      days <= 0
-        ? "today"
-        : days === 1
-          ? "yesterday"
-          : days < 60
-            ? days + " days ago"
-            : Math.round(days / 30) + " months ago";
-  return `${new Date(last + "T12:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })} · ${ago}${d.dates.length > 1 ? ` · ${d.dates.length}×` : ""}`;
-};
-// marked stocks whose last mark is before the start of the chosen period, oldest first
-function anDue() {
-  const now = new Date(),
-    y = now.getFullYear(),
-    m = now.getMonth(),
-    from =
-      anAge === "30"
-        ? isoDay(new Date(now - 30 * 864e5))
-        : anAge === "q"
-          ? isoDay(new Date(y, m - (m % 3), 1))
-          : anAge === "h"
-            ? isoDay(new Date(y, m < 6 ? 0 : 6, 1))
-            : anAge === "y"
-              ? isoDay(new Date(y, 0, 1))
-              : "9999";
-  return Object.values(an)
-    .filter(d => d.dates.length && d.dates[d.dates.length - 1] < from)
-    .sort((a, b) => a.dates[a.dates.length - 1].localeCompare(b.dates[b.dates.length - 1]));
-}
-function anBlock() {
-  const sym = info.symbol || "",
-    d = an[sym],
-    today = isoDay(new Date()),
-    done = d && d.dates.includes(today);
-  return `<div class="anl"><b class="ttl">Analysed</b>
-    <div class="anrow"><span><b>${esc(sym.split(":").pop() || "—")}</b><small>${d ? anLast(d) : "Not analysed yet"}</small></span>
-    ${sym ? (done ? `<button type="button" class="btn ghost" data-act="anundo" title="Remove today's mark">✓ Today</button>` : `<button type="button" class="btn pri" data-act="anmark">✓ Mark analysed</button>`) : ""}</div>
-    <button type="button" class="lnk" data-act="anlist">Stocks to revisit →</button></div>`;
 }
