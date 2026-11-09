@@ -54,7 +54,7 @@ Click the logo, then **+** (New trade). The panel walks you through the trade:
 The panel takes direction, entry date and close date from it (the one selected on the chart, otherwise the one picked under **Position** on the first step, otherwise the one with the latest entry).
 It only fills empty fields, so you can still change the dates; **⟳ from chart** reads them again.
 
-**Close notices:** while you step or skip in replay, a notice appears at the top of the chart when a candle closes the day (on the 4H chart and lower) or the week (also on the Daily chart). Turn them off in ⚙ → Replay.
+**Close notices:** while you step or skip in replay, a large banner with a short chime appears on the chart when a candle closes the day (on the 4H chart and lower) or the week (also on the Daily chart). Turn them, or the chime, off in ⚙ → Replay.
 
 On the start screen, **⏩ Daily CC** / **⏩ Weekly CC** switch the chart to 4H and skip to the next candle that touches one of your drawings, at most until the daily or weekly candle closes (forex: 17:00 New York, weekly on Friday).
 

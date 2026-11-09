@@ -324,8 +324,8 @@ root.addEventListener("change", async e => {
     }
     return;
   }
-  if (e.target.dataset && (e.target.dataset.set === "notifyD" || e.target.dataset.set === "notifyW")) {
-    closes = { ...closes, [e.target.dataset.set === "notifyD" ? "d" : "w"]: e.target.checked };
+  if (e.target.dataset && /^notify[DWS]$/.test(e.target.dataset.set || "")) {
+    closes = { ...closes, [{ notifyD: "d", notifyW: "w", notifyS: "sound" }[e.target.dataset.set]]: e.target.checked };
     saveSet({ closes });
     return;
   }

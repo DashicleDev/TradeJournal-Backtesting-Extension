@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2 — 2026-11-09
+
+- Close notices are hard to miss: a large banner in your accent colour (orange for the weekly close) in the middle of the chart that pulses, stays until you click it (or 15 seconds), and plays a short chime. The chime can be turned off in Settings → Replay.
+
 ## 1.1.1 — 2026-11-09
 
 - **Close notices are for bar replay now**, not the real-time clock: while you step or skip in replay, a notice shows when a candle closes the day (on 4H and lower) or the week (also on the Daily chart). Turn them on or off in Settings → Replay. The Alerts tab and the extra browser permissions are gone again.

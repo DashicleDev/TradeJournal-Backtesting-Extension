@@ -220,10 +220,32 @@ window.addEventListener("message", e => {
     day: "numeric",
     month: "short",
   });
-  toast.innerHTML = `<b>${w ? "Weekly candle closed" : "Daily candle closed"}</b><small>${esc(when)} · 17:00 New York</small>`;
+  toast.innerHTML = `<b>${w ? "Weekly candle closed" : "Daily candle closed"}</b><small>${esc(when)} · 17:00 New York</small><em>Click to close</em>`;
   toast.className = "toast" + (w ? " wk" : "");
   toast.hidden = false;
   clearTimeout(toastT);
-  toastT = setTimeout(() => (toast.hidden = true), 4000);
+  toastT = setTimeout(() => (toast.hidden = true), 15000);
+  if (closes.sound) chime(w);
 });
 toast.addEventListener("click", () => (toast.hidden = true));
+// a short two-note chime (three notes for the weekly close), made in the browser, no sound files
+function chime(w) {
+  try {
+    const ac = new AudioContext(),
+      notes = w ? [660, 880, 1100] : [660, 880];
+    notes.forEach((f, i) => {
+      const o = ac.createOscillator(),
+        g = ac.createGain(),
+        t = ac.currentTime + i * 0.16;
+      o.frequency.value = f;
+      o.type = "sine";
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+      o.connect(g).connect(ac.destination);
+      o.start(t);
+      o.stop(t + 0.32);
+    });
+    setTimeout(() => ac.close(), 1200);
+  } catch {}
+}

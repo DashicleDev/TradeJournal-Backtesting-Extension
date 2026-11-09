@@ -85,7 +85,7 @@ let mkt = "fx",
   tfPrev = "",
   skipBack = "",
   autoFit = true,
-  closes = { d: true, w: true },
+  closes = { d: true, w: true, sound: true },
   settings = false,
   setTab = "chart",
   trig = [],
@@ -182,7 +182,7 @@ async function loadSet() {
       if (typeof r.autoFit === "boolean") autoFit = r.autoFit;
       if (r.look) look = { ...look, ...r.look };
       if (Array.isArray(r.trig)) trig = r.trig;
-      if (r.closes) closes = { d: !!r.closes.d, w: !!r.closes.w };
+      if (r.closes) closes = { d: !!r.closes.d, w: !!r.closes.w, sound: r.closes.sound !== false };
       store({ autoFit, look, trig, closes });
       applyLook();
     } else call("extSave", { data: { autoFit, look, trig, closes } }).catch(() => {}); // first time: put this browser's settings in the account
@@ -218,7 +218,7 @@ const load = async () => {
   if (o.look) look = { ...look, ...o.look };
   if (o.jLook) jLook = o.jLook;
   autoFit = o.autoFit !== false;
-  if (o.closes) closes = { d: !!o.closes.d, w: !!o.closes.w };
+  if (o.closes) closes = { d: !!o.closes.d, w: !!o.closes.w, sound: o.closes.sound !== false };
   logging = !!o.logging;
   view = "steps";
   step = o.step || 0;
