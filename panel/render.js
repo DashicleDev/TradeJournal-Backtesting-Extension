@@ -413,7 +413,8 @@ function renderInner() {
     const tab = ST.some(([k]) => k === setTab) ? setTab : "chart";
     const tb = {
       chart: () =>
-        `<label class="chk"><input type="checkbox" data-set="autoFit" ${autoFit ? "checked" : ""}><span>Fit chart after switching timeframe<small>Turns Auto (price scale) on and off, so the chart fits the screen.</small></span></label>`,
+        `<label class="chk"><input type="checkbox" data-set="autoMkt" ${autoMkt ? "checked" : ""}><span>Pick Forex or Invest from the chart<small>Stocks and ETFs open Invest, forex, gold, indices and the rest open Forex. Not while a trade is in progress, and your own choice stays until you open another symbol.</small></span></label>
+        <label class="chk"><input type="checkbox" data-set="autoFit" ${autoFit ? "checked" : ""}><span>Fit chart after switching timeframe<small>Turns Auto (price scale) on and off, so the chart fits the screen.</small></span></label>`,
       look: () => `<label class="chk"><input type="checkbox" data-set="match" ${look.match ? "checked" : ""}><span>Same look as my journal<small>Uses the theme and accent colour from your journal's settings.</small></span></label>
       ${f(
         "Theme",

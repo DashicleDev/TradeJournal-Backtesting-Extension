@@ -384,6 +384,11 @@ root.addEventListener("change", async e => {
     if (k === "d" || k === "w") render();
     return;
   }
+  if (e.target.dataset && e.target.dataset.set === "autoMkt") {
+    autoMkt = e.target.checked;
+    saveSet({ autoMkt });
+    return;
+  }
   if (e.target.dataset && e.target.dataset.set === "autoFit") {
     autoFit = e.target.checked;
     saveSet({ autoFit });

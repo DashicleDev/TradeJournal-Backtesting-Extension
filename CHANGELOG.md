@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0 — 2026-11-09
+
+- **Forex or Invest from the chart:** the panel switches by itself to Invest on stocks and ETFs, and to Forex on forex pairs, gold, indices and the rest (from TradingView's symbol type). It doesn't switch while a trade is in progress, and if you switch by hand that stays until you open another symbol. Turn it off in Settings → Chart.
+
 ## 1.3.0 — 2026-11-09
 
 - **Analysed marks (Invest):** on the start screen, **✓ Mark analysed** for the stock on your chart, with when you last did it. The line follows the chart when you switch stocks; click **✓ Today** to undo.

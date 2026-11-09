@@ -88,6 +88,7 @@ let mkt = "fx",
   tfPrev = "",
   skipBack = "",
   autoFit = true,
+  autoMkt = true,
   closes = CLOSES0,
   an = {}, // symbol → { sym, ticker, dates[] } for the "analysed" marks (invest)
   anAge = "q",
@@ -177,7 +178,7 @@ const saveSet = o => {
   store(o);
   clearTimeout(setT);
   setT = setTimeout(() => {
-    if (user) call("extSave", { data: { autoFit, look, trig, closes } }).catch(() => {});
+    if (user) call("extSave", { data: { autoFit, autoMkt, look, trig, closes } }).catch(() => {});
   }, 600);
 };
 async function loadSet() {
@@ -185,12 +186,13 @@ async function loadSet() {
     const r = await call("extLoad");
     if (r) {
       if (typeof r.autoFit === "boolean") autoFit = r.autoFit;
+      if (typeof r.autoMkt === "boolean") autoMkt = r.autoMkt;
       if (r.look) look = { ...look, ...r.look };
       if (Array.isArray(r.trig)) trig = r.trig;
       if (r.closes) closes = { ...CLOSES0, ...r.closes };
-      store({ autoFit, look, trig, closes });
+      store({ autoFit, autoMkt, look, trig, closes });
       applyLook();
-    } else call("extSave", { data: { autoFit, look, trig, closes } }).catch(() => {}); // first time: put this browser's settings in the account
+    } else call("extSave", { data: { autoFit, autoMkt, look, trig, closes } }).catch(() => {}); // first time: put this browser's settings in the account
   } catch {}
 }
 
@@ -208,6 +210,7 @@ const load = async () => {
     "step",
     "logging",
     "autoFit",
+    "autoMkt",
     "closes",
     "look",
     "jLook",
@@ -223,6 +226,7 @@ const load = async () => {
   if (o.look) look = { ...look, ...o.look };
   if (o.jLook) jLook = o.jLook;
   autoFit = o.autoFit !== false;
+  autoMkt = o.autoMkt !== false;
   if (o.closes) closes = { ...CLOSES0, ...o.closes };
   logging = !!o.logging;
   view = "steps";

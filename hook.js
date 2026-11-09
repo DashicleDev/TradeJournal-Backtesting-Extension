@@ -756,6 +756,9 @@
       } catch {}
       sym = sym || qs.get("symbol") || document.title.split(" ")[0] || "";
       out.symbol = sym;
+      try {
+        out.type = window.TradingViewApi._activeChartWidgetWV.value().chartModel().mainSeries().symbolInfo().type || "";
+      } catch {}
       const iv = document.querySelector(
         '#header-toolbar-intervals [aria-checked="true"], #header-toolbar-intervals button[aria-pressed="true"], [data-name="intervals"] [class*="isActive"], #header-toolbar-intervals button'
       );

@@ -261,10 +261,29 @@ function chime(w) {
   } catch {}
 }
 
-// on the Invest start screen, notice when you switch to another stock so the "Analysed" line follows the chart
-setInterval(async () => {
-  if (panel.hidden || !user || mkt !== "stocks" || view !== "steps" || logging || settings) return;
+// On the start screen, follow the chart: pick Forex or Invest from the symbol's type (when that's on and no trade is
+// in progress) and keep the Invest "Analysed" line on the stock you're looking at.
+const STOCKY = ["stock", "fund", "dr", "etf", "structured"];
+let autoSym = "";
+async function followChart() {
+  if (panel.hidden || !user || view !== "steps" || logging || settings) return;
   const was = info.symbol;
   await ask();
-  if (info.symbol !== was) render();
-}, 1500);
+  let changed = info.symbol !== was;
+  if (autoMkt && info.symbol && info.symbol !== autoSym && info.type) {
+    autoSym = info.symbol;
+    const want = STOCKY.includes(info.type) ? "stocks" : "fx",
+      draft =
+        (INV() ? D.sPhase || D.s12Ms || D.s6Ms : D.dir || D.fase || D.concept || D.entry4h) ||
+        Object.keys(D.links).length;
+    if (want !== mkt && !draft) {
+      mkt = want;
+      D = { ...blank(), account: "", project: "" };
+      step = 0;
+      store({ mkt, step, draft: D });
+      changed = true;
+    }
+  }
+  if (changed) render();
+}
+setInterval(followChart, 1500);
