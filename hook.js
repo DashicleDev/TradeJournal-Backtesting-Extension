@@ -12,6 +12,7 @@
  *   fwd      skip in bar replay        fwdst (progress / result)
  *   fwdstop  stop skipping
  *   pause    pause replay autoplay
+ *   sym      open a symbol on the chart
  *                                      snap  (a TradingView snapshot link was created)
  *                                      close (replay reached a daily / weekly close)
  *
@@ -459,6 +460,14 @@
       window.postMessage({ __tj: "close", t: end, w, d: !!min }, location.origin);
     } catch {}
   }, 300);
+
+  // open a symbol on the chart (from the panel's "Stocks to revisit" list)
+  window.addEventListener("message", e => {
+    if (e.source !== window || !e.data || e.data.__tj !== "sym") return;
+    try {
+      window.TradingViewApi.activeChart().setSymbol(e.data.sym);
+    } catch {}
+  });
 
   // pause autoplay (the panel asks this at a close when "Pause autoplay at the close" is on)
   window.addEventListener("message", async e => {

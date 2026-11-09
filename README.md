@@ -67,6 +67,7 @@ While a skip runs, **■ Stop** stops it. In ⚙ → Replay you can add your tem
 ## Settings (⚙)
 
 - **Fit chart after switching timeframe**: turns Auto (price scale) on and off after the panel switches timeframe.
+- **Analysed marks (Invest)**: one click marks the stock on your chart as analysed, the panel shows when you last did, and **Stocks to revisit** lists the ones you haven't been through this quarter, half year or year. Click one to open it, or copy the list for a TradingView watchlist.
 - **Same look as my journal**: uses the theme and accent colour from your journal. Untick it to pick your own.
 
 ## Settings sync

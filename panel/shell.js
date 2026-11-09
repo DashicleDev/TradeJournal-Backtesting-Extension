@@ -260,3 +260,11 @@ function chime(w) {
     setTimeout(() => ac.close(), 1200);
   } catch {}
 }
+
+// on the Invest start screen, notice when you switch to another stock so the "Analysed" line follows the chart
+setInterval(async () => {
+  if (panel.hidden || !user || mkt !== "stocks" || view !== "steps" || logging || settings) return;
+  const was = info.symbol;
+  await ask();
+  if (info.symbol !== was) render();
+}, 1500);

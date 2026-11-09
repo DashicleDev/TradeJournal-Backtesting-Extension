@@ -131,6 +131,26 @@ const handlers = {
     });
     return true;
   },
+  // "analysed" marks for invest charts: one document per symbol with the dates you marked it
+  async anList() {
+    const rows = await rest("docs?select=data&data->>kind=eq.analysed");
+    return rows.map(r => r.data);
+  },
+  async anMark({ sym, date, undo }) {
+    const s = await session();
+    if (!s) throw new Error("Not signed in");
+    const id = "an_" + sym,
+      rows = await rest("docs?select=data&id=eq." + encodeURIComponent(id)),
+      old = (rows[0] && rows[0].data) || { id, kind: "analysed", sym, ticker: sym.split(":").pop(), dates: [] },
+      dates = undo ? old.dates.filter(d => d !== date) : [...new Set([...old.dates, date])].sort(),
+      doc = { ...old, dates, updated: Date.now() };
+    await rest("docs", {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([{ user_id: s.uid, id, data: doc, updated_at: new Date().toISOString() }]),
+    });
+    return doc;
+  },
   async save({ doc }) {
     const s = await session();
     if (!s) throw new Error("Not signed in");

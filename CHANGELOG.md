@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0 — 2026-11-09
+
+- **Analysed marks (Invest):** on the start screen, **✓ Mark analysed** for the stock on your chart, with when you last did it. The line follows the chart when you switch stocks; click **✓ Today** to undo.
+- **Stocks to revisit:** the stocks you haven't marked in the last 30 days, this quarter, this half year or this year, oldest first. Click one to open it on the chart, or copy the list to import into a TradingView watchlist.
+- Saved in your journal account (one document per stock), so it works on every browser you sign in on.
+
 ## 1.2.0 — 2026-11-09
 
 Options for the close notices in Settings → Replay:
