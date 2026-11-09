@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 — 2026-11-09
+
+- **Alerts:** new Settings → Alerts tab with a notification when the daily and/or weekly forex candle closes (17:00 New York). It comes from the browser, so TradingView doesn't have to be open. Needs the new "alarms" and "notifications" permissions.
+- **Fix:** ⏩ Daily CC / Weekly CC sometimes ran past the first close, a whole day (or week) too far. That happened when only one 4H candle was left before the close and the chart showed it right away.
+- The candle count in the skip messages no longer counts one candle too many.
+
 ## 1.0.0 — 2026-11-09
 
 First numbered release. The code is split into readable files (`panel/` for the panel, with `hook.js` and `bg.js` documented) and comes with an architecture overview. No changes to how it works.

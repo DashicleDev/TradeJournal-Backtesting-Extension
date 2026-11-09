@@ -407,6 +407,7 @@ function renderInner() {
       ST = [
         ["chart", "Chart"],
         ["replay", "Replay"],
+        ["alerts", "Alerts"],
         ["look", "Look"],
         ["account", "Account"],
       ];
@@ -414,6 +415,10 @@ function renderInner() {
     const tb = {
       chart: () =>
         `<label class="chk"><input type="checkbox" data-set="autoFit" ${autoFit ? "checked" : ""}><span>Fit chart after switching timeframe<small>Turns Auto (price scale) on and off, so the chart fits the screen.</small></span></label>`,
+      alerts: () =>
+        `<p class="hint">A notification on your computer when the forex candle closes (17:00 New York, ${esc(closeLocal())} your time). It comes from the browser, so TradingView doesn't have to be open.</p>
+        <label class="chk"><input type="checkbox" data-set="notifyD" ${notify.d ? "checked" : ""}><span>Daily close<small>Monday to Friday.</small></span></label>
+        <label class="chk"><input type="checkbox" data-set="notifyW" ${notify.w ? "checked" : ""}><span>Weekly close<small>Friday.</small></span></label>`,
       look: () => `<label class="chk"><input type="checkbox" data-set="match" ${look.match ? "checked" : ""}><span>Same look as my journal<small>Uses the theme and accent colour from your journal's settings.</small></span></label>
       ${f(
         "Theme",

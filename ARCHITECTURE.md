@@ -32,7 +32,7 @@ flowchart LR
 |---|---|---|---|
 | `hook.js` | the TradingView page itself (`"world": "MAIN"`) | only the page can reach `window.TradingViewApi` | reads symbol, timeframe, replay date, Long/Short positions and drawing styles; switches timeframe; steps bar replay; toggles auto scale; catches snapshot links |
 | `panel/*.js` | the extension's isolated world | can use extension APIs and stays out of TradingView's scripts | the UI: start screen, step-by-step logging, settings |
-| `bg.js` | the extension's service worker | the only part that talks to the network | sign-in, loading projects/accounts/settings, saving trades, fetching `plan.json`, reload after update |
+| `bg.js` | the extension's service worker | the only part that talks to the network, and it keeps running without a chart open | sign-in, loading projects/accounts/settings, saving trades, fetching `plan.json`, reload after update, candle-close notifications (`chrome.alarms` + `chrome.notifications`) |
 
 The panel lives in a shadow root, so TradingView's CSS and the panel's CSS never affect each other. It ships its own font for the same reason.
 

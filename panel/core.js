@@ -85,6 +85,7 @@ let mkt = "fx",
   tfPrev = "",
   skipBack = "",
   autoFit = true,
+  notify = { d: false, w: false },
   settings = false,
   setTab = "chart",
   trig = [],
@@ -165,13 +166,28 @@ async function loadJLook() {
   applyLook();
 }
 
+/* 17:00 New York in the viewer's own time zone, e.g. "23:00" */
+const closeLocal = () => {
+  const now = new Date();
+  for (let h = 0; h < 48; h++) {
+    const t = new Date(Math.floor(now / 36e5) * 36e5 + h * 36e5);
+    const ny = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour: "numeric",
+      hourCycle: "h23",
+    }).format(t);
+    if (+ny === 17) return t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+  return "";
+};
+
 /* ---------- settings: kept in this browser and in your journal account ---------- */
 let setT;
 const saveSet = o => {
   store(o);
   clearTimeout(setT);
   setT = setTimeout(() => {
-    if (user) call("extSave", { data: { autoFit, look, trig } }).catch(() => {});
+    if (user) call("extSave", { data: { autoFit, look, trig, notify } }).catch(() => {});
   }, 600);
 };
 async function loadSet() {
@@ -181,9 +197,10 @@ async function loadSet() {
       if (typeof r.autoFit === "boolean") autoFit = r.autoFit;
       if (r.look) look = { ...look, ...r.look };
       if (Array.isArray(r.trig)) trig = r.trig;
-      store({ autoFit, look, trig });
+      if (r.notify) notify = { d: !!r.notify.d, w: !!r.notify.w };
+      store({ autoFit, look, trig, notify });
       applyLook();
-    } else call("extSave", { data: { autoFit, look, trig } }).catch(() => {}); // first time: put this browser's settings in the account
+    } else call("extSave", { data: { autoFit, look, trig, notify } }).catch(() => {}); // first time: put this browser's settings in the account
   } catch {}
 }
 
@@ -201,6 +218,7 @@ const load = async () => {
     "step",
     "logging",
     "autoFit",
+    "notify",
     "look",
     "jLook",
     "trig",
@@ -215,6 +233,7 @@ const load = async () => {
   if (o.look) look = { ...look, ...o.look };
   if (o.jLook) jLook = o.jLook;
   autoFit = o.autoFit !== false;
+  if (o.notify) notify = { d: !!o.notify.d, w: !!o.notify.w };
   logging = !!o.logging;
   view = "steps";
   step = o.step || 0;

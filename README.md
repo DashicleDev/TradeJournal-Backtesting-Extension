@@ -65,6 +65,7 @@ While a skip runs, **■ Stop** stops it. In ⚙ → Replay you can add your tem
 ## Settings (⚙)
 
 - **Fit chart after switching timeframe**: turns Auto (price scale) on and off after the panel switches timeframe.
+- **Alerts**: a notification when the daily and/or weekly candle closes (17:00 New York, Monday to Friday / Friday). Comes from the browser, so TradingView doesn't need to be open; the browser does.
 - **Same look as my journal**: uses the theme and accent colour from your journal. Untick it to pick your own.
 
 ## Settings sync

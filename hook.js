@@ -511,6 +511,11 @@
       } catch {}
       const switched = !!want && norm(prev) !== want;
       fwdBack = switched ? prev : "";
+      // where the replay is now, before anything moves: the end of the last candle on an intraday chart
+      // (on a daily/weekly chart we can't tell, and assume you're at a close)
+      const pre = lastBar(),
+        preMin = /^\d+$/.test(prev) ? +prev : 0,
+        preEnd = pre && preMin ? pre[0] + preMin * 60 : 0;
       if (switched) {
         try {
           ch.setResolution(e.data.res);
@@ -549,13 +554,35 @@
       for (let i = 0; i < 300 && !loaded(); i++) await sleep(30);
       if (!loaded()) return say({ done: true, why: "The chart is still loading. Try again in a moment." });
       await sleep(40);
+      // wait for the first candle to really show (the chart can still show the previous last candle for a moment)
+      for (let i = 0; i < 50 && preEnd && (lastBar() || [0])[0] < preEnd; i++) await sleep(20);
       let bar = lastBar();
       say({ n: 1 });
-      // the close to run to: the next one after this candle (if this candle already closes the day / week, the one after that)
+      // the close to run to: the first one after where the replay was. If the first candle is the last one before
+      // that close, it was either just drawn (then we're done after it) or the step didn't get past a close we were
+      // already at (then run to the next one).
       const start = bar[0],
         maxSec = e.data.maxSec || 0;
       let until = e.data.until ? nextClose(bar[0], e.data.until) : 0;
-      if (until && bar[0] + 14400 >= until) until = nextClose(bar[0] + 14400, e.data.until);
+      if (until && bar[0] + 14400 >= until) {
+        const fresh = preEnd ? preEnd < until : false;
+        if (!fresh) until = nextClose(bar[0] + 14400, e.data.until);
+        else {
+          const h1 = watch.find(L => (!isFinite(L.t0) || L.t0 <= bar[0]) && touches(bar, L));
+          if (h1)
+            return say({
+              done: true,
+              hit: true,
+              n: 1,
+              ti: h1.ti,
+              why: `Price hit the ${/rect/i.test(h1.name) ? "rectangle" : "line"} after 1 candle.`,
+            });
+          return say({
+            done: true,
+            why: `No hit before the ${e.data.until === "W" ? "weekly" : "daily"} close (1 candle).` + noneTxt,
+          });
+        }
+      }
       for (let n = 2; n <= max; n++) {
         if (fwdStop) return say({ done: true, why: `Stopped after ${n - 1} candles.` });
         const t = bar[0];
