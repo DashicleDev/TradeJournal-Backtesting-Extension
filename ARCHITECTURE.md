@@ -38,7 +38,7 @@ The panel lives in a shadow root, so TradingView's CSS and the panel's CSS never
 
 ## Messages
 
-**Panel ↔ hook** use `window.postMessage` with a `__tj` field (see the table at the top of `hook.js`): `ask`/`info` for chart info, `tf`/`tfok` to switch timeframe, `pos`/`posinfo` and `posshow`/`posshown` for Long/Short positions, `sig`/`sigok` to read a drawing's style, `fwd`/`fwdst`/`fwdstop` to skip in bar replay, `snap` when TradingView creates a snapshot link, and `close` when bar replay reaches a daily or weekly close (the panel then shows a notice).
+**Panel ↔ hook** use `window.postMessage` with a `__tj` field (see the table at the top of `hook.js`): `ask`/`info` for chart info, `tf`/`tfok` to switch timeframe, `pos`/`posinfo` and `posshow`/`posshown` for Long/Short positions, `sig`/`sigok` to read a drawing's style, `fwd`/`fwdst`/`fwdstop` to skip in bar replay, `pause` to pause autoplay, `snap` when TradingView creates a snapshot link, and `close` when bar replay reaches a daily or weekly close (the panel then shows a notice).
 
 **Panel → background** use `chrome.runtime.sendMessage({type, ...})` through the `call()` helper in `panel/core.js`, : `status`, `login`, `logout`, `plan`, `projects`, `accounts`, `jsettings` (the journal's look), `extLoad`/`extSave` (extension settings), `save` (a trade) and `reload`.
 

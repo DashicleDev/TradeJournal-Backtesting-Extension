@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.0 — 2026-11-09
+
+Options for the close notices in Settings → Replay:
+
+- **Stays:** 3, 5 or 10 seconds, or until clicked.
+- **Position:** top, middle or bottom of the chart.
+- **Size:** large (coloured banner) or compact (a card in the panel's style).
+- **Timeframe buttons:** Open Daily / Open Weekly on the notice switch the chart.
+- **Pause autoplay at the close** when replay is playing by itself.
+- **Show an example** to try your settings.
+
 ## 1.1.2 — 2026-11-09
 
 - Close notices are hard to miss: a large banner in your accent colour (orange for the weekly close) in the middle of the chart that pulses, stays until you click it (or 15 seconds), and plays a short chime. The chime can be turned off in Settings → Replay.

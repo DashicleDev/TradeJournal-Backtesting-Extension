@@ -209,25 +209,36 @@ function arm(slot) {
 
 /* ---------- candle-close notices in bar replay (hook.js reports each close) ---------- */
 let toastT;
-window.addEventListener("message", e => {
-  if (e.source !== window || !e.data || e.data.__tj !== "close") return;
-  const w = e.data.w && closes.w,
-    d = e.data.d && closes.d;
-  if (!w && !d) return;
-  const when = new Date(e.data.t * 1000).toLocaleDateString(undefined, {
+function showClose(m, test) {
+  const w = m.w && closes.w,
+    d = m.d && closes.d;
+  if (!w && !d && !test) return;
+  const when = new Date(m.t * 1000).toLocaleDateString(undefined, {
     timeZone: "America/New_York",
     weekday: "short",
     day: "numeric",
     month: "short",
   });
-  toast.innerHTML = `<b>${w ? "Weekly candle closed" : "Daily candle closed"}</b><small>${esc(when)} · 17:00 New York</small><em>Click to close</em>`;
-  toast.className = "toast" + (w ? " wk" : "");
+  const btns = closes.tf
+    ? `<span class="tbtn">${m.d ? `<button type="button" data-totf="D">Open Daily</button>` : ""}${w ? `<button type="button" data-totf="W">Open Weekly</button>` : ""}</span>`
+    : "";
+  toast.innerHTML = `<b>${w ? "Weekly candle closed" : "Daily candle closed"}</b><small>${esc(when)} · 17:00 New York</small>${btns}${closes.dur ? "" : `<em>Click to close</em>`}`;
+  toast.className = `toast ${closes.size === "sm" ? "sm" : "lg"} p-${closes.pos || "mid"}${w ? " wk" : ""}`;
   toast.hidden = false;
   clearTimeout(toastT);
-  toastT = setTimeout(() => (toast.hidden = true), 15000);
+  if (closes.dur) toastT = setTimeout(() => (toast.hidden = true), closes.dur * 1000);
   if (closes.sound) chime(w);
+  if (closes.pause && !test) window.postMessage({ __tj: "pause" }, location.origin);
+}
+window.addEventListener("message", e => {
+  if (e.source === window && e.data && e.data.__tj === "close") showClose(e.data);
 });
-toast.addEventListener("click", () => (toast.hidden = true));
+toast.addEventListener("click", e => {
+  const b = e.target.closest("[data-totf]");
+  toast.hidden = true;
+  clearTimeout(toastT);
+  if (b) setTf(b.dataset.totf);
+});
 // a short two-note chime (three notes for the weekly close), made in the browser, no sound files
 function chime(w) {
   try {

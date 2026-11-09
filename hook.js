@@ -11,6 +11,7 @@
  *   sig      read a drawing's style    sigok
  *   fwd      skip in bar replay        fwdst (progress / result)
  *   fwdstop  stop skipping
+ *   pause    pause replay autoplay
  *                                      snap  (a TradingView snapshot link was created)
  *                                      close (replay reached a daily / weekly close)
  *
@@ -458,6 +459,15 @@
       window.postMessage({ __tj: "close", t: end, w, d: !!min }, location.origin);
     } catch {}
   }, 300);
+
+  // pause autoplay (the panel asks this at a close when "Pause autoplay at the close" is on)
+  window.addEventListener("message", async e => {
+    if (e.source !== window || !e.data || e.data.__tj !== "pause") return;
+    try {
+      const rp = await (window.__tjRp || (window.__tjRp = window.TradingViewApi.replayApi()));
+      if (rp.isAutoplayStarted().value()) rp.toggleAutoplay();
+    } catch {}
+  });
 
   let fwdStop = false,
     fwdBack = "";

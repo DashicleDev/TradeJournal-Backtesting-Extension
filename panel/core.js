@@ -78,6 +78,9 @@ const blank = () => ({
   tpPips: "",
   sExits: [],
 });
+// close notices in bar replay: which closes, how long the notice stays (s, 0 = until clicked), where, how big,
+// chime, buttons to open the Daily/Weekly chart, pause autoplay
+const CLOSES0 = { d: true, w: true, sound: true, dur: 10, pos: "mid", size: "lg", tf: true, pause: false };
 let mkt = "fx",
   tmode = "backtest",
   accounts = [],
@@ -85,7 +88,7 @@ let mkt = "fx",
   tfPrev = "",
   skipBack = "",
   autoFit = true,
-  closes = { d: true, w: true, sound: true },
+  closes = CLOSES0,
   settings = false,
   setTab = "chart",
   trig = [],
@@ -182,7 +185,7 @@ async function loadSet() {
       if (typeof r.autoFit === "boolean") autoFit = r.autoFit;
       if (r.look) look = { ...look, ...r.look };
       if (Array.isArray(r.trig)) trig = r.trig;
-      if (r.closes) closes = { d: !!r.closes.d, w: !!r.closes.w, sound: r.closes.sound !== false };
+      if (r.closes) closes = { ...CLOSES0, ...r.closes };
       store({ autoFit, look, trig, closes });
       applyLook();
     } else call("extSave", { data: { autoFit, look, trig, closes } }).catch(() => {}); // first time: put this browser's settings in the account
@@ -218,7 +221,7 @@ const load = async () => {
   if (o.look) look = { ...look, ...o.look };
   if (o.jLook) jLook = o.jLook;
   autoFit = o.autoFit !== false;
-  if (o.closes) closes = { d: !!o.closes.d, w: !!o.closes.w, sound: o.closes.sound !== false };
+  if (o.closes) closes = { ...CLOSES0, ...o.closes };
   logging = !!o.logging;
   view = "steps";
   step = o.step || 0;

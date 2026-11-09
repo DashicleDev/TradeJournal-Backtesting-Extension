@@ -434,7 +434,53 @@ function renderInner() {
         () => `<p class="hint">In bar replay, show a notice when a candle closes the day or week (17:00 New York).</p>
         <label class="chk"><input type="checkbox" data-set="notifyD" ${closes.d ? "checked" : ""}><span>Daily close<small>On the 4H chart and lower.</small></span></label>
         <label class="chk"><input type="checkbox" data-set="notifyW" ${closes.w ? "checked" : ""}><span>Weekly close<small>On the Daily, 4H and lower charts.</small></span></label>
+        ${
+          closes.d || closes.w
+            ? `${f(
+                "Stays",
+                `<div class="segs">${[
+                  [3, "3 s"],
+                  [5, "5 s"],
+                  [10, "10 s"],
+                  [0, "Until clicked"],
+                ]
+                  .map(
+                    ([v, l]) =>
+                      `<button type="button" class="sg${closes.dur === v ? " on" : ""}" data-cl="dur" data-v="${v}">${l}</button>`
+                  )
+                  .join("")}</div>`
+              )}
+        ${f(
+          "Position",
+          `<div class="segs">${[
+            ["top", "Top"],
+            ["mid", "Middle"],
+            ["bot", "Bottom"],
+          ]
+            .map(
+              ([v, l]) =>
+                `<button type="button" class="sg${closes.pos === v ? " on" : ""}" data-cl="pos" data-v="${v}">${l}</button>`
+            )
+            .join("")}</div>`
+        )}
+        ${f(
+          "Size",
+          `<div class="segs">${[
+            ["lg", "Large"],
+            ["sm", "Compact"],
+          ]
+            .map(
+              ([v, l]) =>
+                `<button type="button" class="sg${closes.size === v ? " on" : ""}" data-cl="size" data-v="${v}">${l}</button>`
+            )
+            .join("")}</div>`
+        )}
         <label class="chk"><input type="checkbox" data-set="notifyS" ${closes.sound ? "checked" : ""}><span>Play a sound<small>A short chime with the notice.</small></span></label>
+        <label class="chk"><input type="checkbox" data-set="notifyT" ${closes.tf ? "checked" : ""}><span>Timeframe buttons<small>Daily and Weekly buttons on the notice switch the chart.</small></span></label>
+        <label class="chk"><input type="checkbox" data-set="notifyP" ${closes.pause ? "checked" : ""}><span>Pause autoplay at the close<small>When replay is playing by itself.</small></span></label>
+        <div><button type="button" class="btn ghost sm" data-act="cltest">Show an example</button></div>`
+            : ""
+        }
         <hr>
         <p class="hint">The skip buttons on the start screen step the replay until price touches a horizontal line or rectangle. Add your templates here so they only stop at those.</p>
         ${trig.length ? `<div class="trl">${trig.map((t, i) => `<div class="tr" data-tri="${i}"><span class="grip" draggable="true" data-grip="${i}" title="Drag to reorder">⋮⋮</span><i style="background:${esc(t.color || "transparent")}"></i><input type="text" class="trn" data-trn="${i}" value="${esc(t.label || "")}" placeholder="${t.name === "rectangle" ? "Rectangle" : t.name === "horizontal_ray" ? "Horizontal ray" : "Horizontal line"}" aria-label="Name"><em>${t.name === "rectangle" ? "Rectangle" : t.name === "horizontal_ray" ? "Ray" : "Line"}</em><button type="button" class="lnk" data-rmtrig="${i}" title="Remove">×</button></div>`).join("")}</div>` : `<p class="hint">No styles yet, so it stops at any horizontal line or rectangle.</p>`}

@@ -143,6 +143,12 @@ root.addEventListener("click", async e => {
     setTab = d.settab;
     return render();
   }
+  if (d.cl) {
+    closes = { ...closes, [d.cl]: d.cl === "dur" ? +d.v : d.v };
+    saveSet({ closes });
+    return render();
+  }
+  if (d.act === "cltest") return showClose({ w: false, d: true, t: Math.floor(Date.now() / 1000) }, true);
   if (d.look) {
     if (look.match && jLook) look = { ...look, theme: jLook.theme, accent: jLook.accent };
     look.match = false;
@@ -324,9 +330,11 @@ root.addEventListener("change", async e => {
     }
     return;
   }
-  if (e.target.dataset && /^notify[DWS]$/.test(e.target.dataset.set || "")) {
-    closes = { ...closes, [{ notifyD: "d", notifyW: "w", notifyS: "sound" }[e.target.dataset.set]]: e.target.checked };
+  if (e.target.dataset && /^notify[DWSTP]$/.test(e.target.dataset.set || "")) {
+    const k = { notifyD: "d", notifyW: "w", notifyS: "sound", notifyT: "tf", notifyP: "pause" }[e.target.dataset.set];
+    closes = { ...closes, [k]: e.target.checked };
     saveSet({ closes });
+    if (k === "d" || k === "w") render();
     return;
   }
   if (e.target.dataset && e.target.dataset.set === "autoFit") {

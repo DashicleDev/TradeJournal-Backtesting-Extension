@@ -5,11 +5,20 @@ function CSS() {
   return `
 :host{all:initial}
 *{box-sizing:border-box;font-family:"TJ Archivo",Archivo,system-ui,-apple-system,Segoe UI,sans-serif}
-.toast{--acc:#8590ff;--live:#f08c4c;position:fixed;top:18%;left:50%;transform:translateX(-50%);display:grid;gap:4px;justify-items:center;text-align:center;min-width:300px;padding:18px 30px;background:var(--acc);color:#fff;border-radius:14px;box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 35%,transparent),0 18px 50px rgba(0,0,0,.5);cursor:pointer;animation:tjin .2s ease-out,tjpulse 1s ease-in-out .2s 3}
-.toast[hidden]{display:none}.toast b{font-size:22px;font-weight:800;letter-spacing:.01em}.toast small{font-size:13px;opacity:.9}.toast em{font-style:normal;font-size:11px;opacity:.75;margin-top:4px}
-.toast.wk{background:var(--live);box-shadow:0 0 0 4px color-mix(in srgb,var(--live) 35%,transparent),0 18px 50px rgba(0,0,0,.5)}
+.toast{--bg:#161a2d;--ink:#e6e8f3;--mut:#9299b8;--line:#283050;--acc:#8590ff;--live:#f08c4c;position:fixed;left:50%;transform:translateX(-50%);display:grid;justify-items:center;text-align:center;cursor:pointer;animation:tjin .2s ease-out}
+.toast[hidden]{display:none}.toast.p-top{top:14px}.toast.p-mid{top:22%}.toast.p-bot{bottom:60px}
+.toast.lg{gap:4px;min-width:300px;padding:18px 30px;background:var(--acc);color:#fff;border-radius:14px;box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 35%,transparent),0 18px 50px rgba(0,0,0,.5);animation:tjin .2s ease-out,tjpulse 1s ease-in-out .2s 3}
+.toast.lg.wk{background:var(--live);box-shadow:0 0 0 4px color-mix(in srgb,var(--live) 35%,transparent),0 18px 50px rgba(0,0,0,.5)}
+.toast.lg b{font-size:22px;font-weight:800}.toast.lg small{font-size:13px;opacity:.9}.toast.lg em{font-style:normal;font-size:11px;opacity:.75;margin-top:2px}
+.toast.sm{gap:2px;padding:10px 18px 10px 16px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:10px;box-shadow:0 12px 34px rgba(0,0,0,.45);justify-items:start;text-align:left}
+.toast.sm.wk{border-left-color:var(--live)}.toast.sm b{font-size:14px;font-weight:700}.toast.sm small,.toast.sm em{color:var(--mut);font-size:12px;font-style:normal}
+.toast .tbtn{display:flex;gap:6px;margin-top:6px}
+.toast .tbtn button{font:inherit;font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:7px;cursor:pointer;border:1px solid rgba(255,255,255,.55);background:rgba(255,255,255,.16);color:inherit}
+.toast .tbtn button:hover{background:rgba(255,255,255,.3)}
+.toast.sm .tbtn button{border-color:var(--line);background:var(--in,#0e1120);color:var(--ink)}.toast.sm .tbtn button:hover{border-color:var(--acc)}
 @keyframes tjin{from{opacity:0;transform:translate(-50%,-10px) scale(.96)}to{opacity:1;transform:translateX(-50%)}}
 @keyframes tjpulse{50%{transform:translateX(-50%) scale(1.06)}}
+.panel .f + .chk{margin-top:8px}
 .panel hr{border:0;border-top:1px solid var(--line);margin:10px 0;width:100%}
 .pill{position:fixed;right:16px;bottom:80px;width:46px;height:46px;border-radius:12px;border:0;padding:0;background:none;cursor:grab;box-shadow:0 6px 20px rgba(0,0,0,.4);touch-action:none;overflow:hidden}.pill:active{cursor:grabbing}.pill img{width:100%;height:100%;display:block;pointer-events:none;user-select:none}
 [hidden]{display:none!important}
