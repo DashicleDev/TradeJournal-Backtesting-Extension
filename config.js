@@ -4,5 +4,5 @@ const TJ = {
   url: "https://hmkikstwphyiwxtjlejt.supabase.co",
   anonKey: "sb_publishable_CAmosQpYv5zO5MvmKnMfdw_Yf06GLgv",
   planUrl: "https://dashicledev.github.io/TradeJournal/plan.json",
-  appUrl: "https://dashicledev.github.io/TradeJournal/"
+  appUrl: "https://dashicledev.github.io/TradeJournal/",
 };

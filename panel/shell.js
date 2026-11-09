@@ -1,0 +1,207 @@
+/*
+ * panel/shell.js — The panel itself: the TJ button, the shadow-root panel, dragging, plus reading the chart
+ * (symbol, timeframe, replay date) and taking chart snapshots.
+ */
+/* ---------- shell ---------- */
+const host = document.createElement("div");
+host.id = "tj-panel-host";
+host.style.cssText = "position:fixed;z-index:2147483000;top:72px;right:16px;";
+const root = host.attachShadow({ mode: "open" });
+root.innerHTML = `<style>${CSS()}</style><button class="pill" title="Trade Journal (drag to move)"><img src="${chrome.runtime.getURL("icons/icon-128.png")}" alt="Trade Journal" draggable="false"></button><section class="panel" hidden></section>`;
+const panel = root.querySelector(".panel"),
+  pill = root.querySelector(".pill");
+document.documentElement.appendChild(host);
+// the journal's font (Archivo), shipped with the extension, so the page's rules can't block it
+fetch(chrome.runtime.getURL("fonts/archivo.woff2"))
+  .then(r => r.arrayBuffer())
+  .then(buf => {
+    const ff = new FontFace("TJ Archivo", buf, { weight: "100 900", stretch: "62% 125%" });
+    return ff.load().then(() => document.fonts.add(ff));
+  })
+  .catch(() => {});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => applyLook());
+
+// the logo button: click opens the panel, drag moves it (position is remembered)
+let pd = null;
+pill.addEventListener("pointerdown", e => {
+  const r = pill.getBoundingClientRect();
+  pd = { x: e.clientX, y: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false };
+  pill.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+pill.addEventListener("pointermove", e => {
+  if (!pd) return;
+  if (Math.hypot(e.clientX - pd.x, e.clientY - pd.y) > 4) pd.moved = true;
+  if (!pd.moved) return;
+  const x = Math.max(4, Math.min(innerWidth - 48, e.clientX - pd.dx)),
+    y = Math.max(4, Math.min(innerHeight - 48, e.clientY - pd.dy));
+  Object.assign(pill.style, { left: x + "px", top: y + "px", right: "auto", bottom: "auto" });
+});
+pill.addEventListener("pointerup", () => {
+  if (!pd) return;
+  const m = pd.moved;
+  pd = null;
+  if (m) store({ pillPos: { left: pill.style.left, top: pill.style.top } });
+  else toggle(true);
+});
+chrome.storage.local.get("pillPos").then(o => {
+  if (o.pillPos && o.pillPos.left)
+    Object.assign(pill.style, { left: o.pillPos.left, top: o.pillPos.top, right: "auto", bottom: "auto" });
+});
+chrome.runtime.onMessage.addListener(m => {
+  if (m && m.type === "toggle") toggle(!open);
+});
+function toggle(v) {
+  open = v;
+  store({ open });
+  panel.hidden = !open;
+  pill.hidden = open;
+  if (open) render();
+}
+
+// drag by header
+let drag = null;
+root.addEventListener("pointerdown", e => {
+  const h = e.target.closest(".head");
+  if (!h || e.target.closest("button")) return;
+  const r = host.getBoundingClientRect();
+  drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+  h.setPointerCapture(e.pointerId);
+});
+root.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const x = Math.max(0, Math.min(innerWidth - 80, e.clientX - drag.dx)),
+    y = Math.max(0, Math.min(innerHeight - 40, e.clientY - drag.dy));
+  Object.assign(host.style, { left: x + "px", top: y + "px", right: "auto" });
+});
+root.addEventListener("pointerup", () => {
+  if (drag) {
+    drag = null;
+    store({ pos: { left: host.style.left, top: host.style.top } });
+  }
+});
+const fit = () => {
+  panel.style.maxHeight = Math.max(260, innerHeight - host.getBoundingClientRect().top - 12) + "px";
+};
+addEventListener("resize", fit);
+root.addEventListener("pointerup", fit);
+
+/* ---------- page info (symbol, interval, replay date) ---------- */
+let info = {};
+const ask = () =>
+  new Promise(res => {
+    const f = e => {
+      if (e.source === window && e.data && e.data.__tj === "info") {
+        removeEventListener("message", f);
+        info = e.data;
+        res(info);
+      }
+    };
+    addEventListener("message", f);
+    window.postMessage({ __tj: "ask" }, location.origin);
+    setTimeout(() => {
+      removeEventListener("message", f);
+      res(info);
+    }, 400);
+  });
+const pairOf = s =>
+  String(s || "")
+    .split(":")
+    .pop()
+    .replace(/[^A-Za-z0-9]/g, "")
+    .toUpperCase();
+const slotOf = iv => {
+  const v = String(iv || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s/g, "");
+  if (INV()) {
+    if (/^12m/.test(v)) return "m12";
+    if (/^6m/.test(v)) return "m6";
+    if (/^3m/.test(v)) return "m3";
+    if (/^(1?m|1month)$/.test(v)) return "mo";
+    if (/^(1?w|1week|week)$/.test(v)) return "wk";
+    return null;
+  }
+  if (/^(1?w|1week|week)$/.test(v)) return "weekly";
+  if (/^(1?d|1day|day)$/.test(v)) return "daily";
+  if (/^(4h|240)$/.test(v)) return "h4";
+  if (/^(1h|2h|60|120)$/.test(v)) return "ltf";
+  return null;
+};
+const MON = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+const dateOf = t => {
+  if (!t) return "";
+  let m = /(\d{4})-(\d{2})-(\d{2})/.exec(t);
+  if (m) return m[0];
+  m = /(\d{1,2})\s([A-Za-z]{3})\w*\s'?(\d{2,4})/.exec(t);
+  if (m && MON[m[2].toLowerCase()]) {
+    const y = m[3].length === 2 ? "20" + m[3] : m[3];
+    return `${y}-${String(MON[m[2].toLowerCase()]).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  }
+  return "";
+};
+
+/* ---------- snapshots ---------- */
+const seen = new Set();
+addEventListener("message", async e => {
+  if (e.source !== window || !e.data || e.data.__tj !== "snap") return;
+  // the same snapshot is often reported twice (network + clipboard): handle it once
+  if (seen.has(e.data.id)) return;
+  seen.add(e.data.id);
+  let slot = armed;
+  if (!slot) {
+    await ask();
+    slot = slotOf(info.interval);
+  }
+  if (!slot) {
+    msg = `Snapshot caught, but which timeframe? Pick a 📷 button first, then take it again.`;
+    return render();
+  }
+  D.links[slot] = "https://www.tradingview.com/x/" + e.data.id + "/";
+  armed = null;
+  clearTimeout(armTimer);
+  msg = `${SLOTS.find(s => s[0] === slot)[1]} chart saved.`;
+  keep();
+  if (snapWait && snapWait.slot === slot) {
+    const w = snapWait;
+    snapWait = null;
+    w.done(true);
+    return;
+  }
+  render();
+});
+function trySnapshot() {
+  // TradingView's own shortcut for "Copy link to the chart image". If it doesn't fire,
+  // the user presses it (or camera → Copy link) and the hook still catches the link.
+  const ev = t =>
+    new KeyboardEvent(t, {
+      key: "s",
+      code: "KeyS",
+      keyCode: 83,
+      which: 83,
+      altKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+  const tgt = document.querySelector(".chart-container, .chart-gui-wrapper, canvas") || document.body;
+  try {
+    tgt.dispatchEvent(ev("keydown"));
+    tgt.dispatchEvent(ev("keyup"));
+  } catch {}
+}
+function arm(slot) {
+  armed = armed === slot ? null : slot;
+  clearTimeout(armTimer);
+  if (armed) {
+    msg = `Switch TradingView to ${SLOTS.find(s => s[0] === slot)[1]} if needed. Taking the snapshot…`;
+    trySnapshot();
+    armTimer = setTimeout(() => {
+      if (armed === slot) {
+        msg = `Press Alt+S on the chart (or camera → Copy link). It goes to ${SLOTS.find(s => s[0] === slot)[1]}.`;
+        render();
+      }
+    }, 3500);
+  } else msg = "";
+  render();
+}

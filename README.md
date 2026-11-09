@@ -21,12 +21,14 @@ The field lists come from the journal's `plan.json`, so new options show up here
 
 ## How it works
 
-A Manifest V3 extension for Chromium browsers, in plain JavaScript:
+A Manifest V3 extension for Chromium browsers, in plain JavaScript (no build step). More detail, with a diagram of how the parts talk to each other: **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
-- `content.js`: the panel. It is injected into the TradingView chart page and walks you through the trade step by step.
-- `hook.js`: runs in the page itself and only picks up TradingView's own snapshot links, so they can be stored with the trade.
-- `bg.js`: the service worker. It handles the toolbar button, the stored session and reloading after an update.
+- `panel/`: the panel, injected into the TradingView chart page in the extension's isolated world. It walks you through the trade step by step. Split by area: `core`, `shell`, `position`, `steps`, `render`, `events`, `boot`, `styles`.
+- `hook.js`: runs inside the TradingView page itself, the only place that can reach TradingView's chart API. It reads the chart (symbol, timeframe, replay date, Long/Short positions, drawings), switches timeframes, steps bar replay and picks up snapshot links.
+- `bg.js`: the service worker. Sign-in, all database calls, the trade plan, the toolbar button and reloading after an update.
 - It signs in with the same Supabase account as the journal and writes to the same database, so row-level security keeps each user's trades private.
+
+Changes per version: **[CHANGELOG.md](CHANGELOG.md)**.
 
 ## Install (Edge, Chrome, Brave, Opera)
 
