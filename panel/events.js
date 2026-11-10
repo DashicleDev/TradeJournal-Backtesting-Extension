@@ -312,7 +312,13 @@ root.addEventListener("click", async e => {
   }
   if (d.k) {
     D[d.k] = D[d.k] === d.v ? "" : d.v;
-    if (d.k === "fase" && D.concept && !(P.plan.faseConcepts[D.fase] || []).includes(D.concept)) {
+    // a daily pattern not used in the new phase is cleared; Weekly - 4H is the setup picked on the Trade step, so it stays
+    if (
+      d.k === "fase" &&
+      D.concept &&
+      D.concept !== "Weekly - 4H" &&
+      !(P.plan.faseConcepts[D.fase] || []).includes(D.concept)
+    ) {
       D.concept = "";
       D.sub = "";
     }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.4 — 2026-11-10
+
+- **Setup** is now on the Trade step (under pair and direction), so the weekly step stays as it was. Weekly - 4H stays picked when you choose a phase on the weekly step.
+
 ## 1.4.3 — 2026-11-10
 
 - **Setup** moved to the weekly step, under phase and inner/outer. The daily step only asks the daily pattern (with Weekly - Daily - 4H).

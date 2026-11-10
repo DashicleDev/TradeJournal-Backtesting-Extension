@@ -260,6 +260,25 @@ function renderInner() {
       }</div>
     ${
       view === "steps"
+        ? (() => {
+            // Setup: Weekly - Daily - 4H (the daily pattern is picked on the daily step) or Weekly - 4H
+            if (D.concept) D.setup = D.concept === "Weekly - 4H" ? "w4" : "wd4";
+            return f(
+              "Setup",
+              seg(
+                "setup",
+                [
+                  ["wd4", "Weekly - Daily - 4H"],
+                  ["w4", "Weekly - 4H"],
+                ],
+                D.setup
+              )
+            );
+          })()
+        : ""
+    }
+    ${
+      view === "steps"
         ? ""
         : f(
             "Direction",
@@ -298,15 +317,7 @@ function renderInner() {
           D.wStruct
         )
       )}</div>
-      ${(() => {
-        // Setup: Weekly - Daily - 4H (a daily pattern follows on the daily step) or Weekly - 4H
-        if (D.concept) D.setup = D.concept === "Weekly - 4H" ? "w4" : "wd4";
-        const opts = [
-          fc.some(c => c !== "Weekly - 4H") && ["wd4", "Weekly - Daily - 4H"],
-          fc.includes("Weekly - 4H") && ["w4", "Weekly - 4H"],
-        ].filter(Boolean);
-        return f("Setup", seg("setup", opts, D.setup));
-      })()}
+
       <div class="row2">${f("Market trend", seg("trend", MS, D.trend))}${f("Market structure", seg("ms", MS, D.ms))}</div>
       <div class="row2">${f("Ranging <em>between two weekly levels</em>", `<div class="segs"><button type="button" class="sg${D.wRange ? " on" : ""}" data-tog="wRange">↔ Ranging</button></div>`)}
         ${f("Weekly pattern", sel("wPat", ["Continuation", "Reversal", "Pattern in Pattern"], D.wPat, "No pattern"))}</div>
