@@ -57,6 +57,7 @@ const blank = () => ({
   wPatSub: "",
   w: {},
   concept: "",
+  setup: "", // "wd4" = Weekly - Daily - 4H (concept is the daily pattern), "w4" = Weekly - 4H
   sub: "",
   dMs: "",
   dPros: [],

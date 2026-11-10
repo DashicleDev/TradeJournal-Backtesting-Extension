@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.2 — 2026-11-10
+
+- Daily step: first pick the **Setup**, Weekly - Daily - 4H or Weekly - 4H. With Weekly - Daily - 4H you then pick the **Daily pattern** and its variant. Saved the same way as before, so the journal reads it unchanged.
+
 ## 1.4.1 — 2026-11-09
 
 - Removed the Analysed marks and the Stocks to revisit list from 1.3.0: with this many stocks a list of the ones you marked didn't help. Marks already saved stay in your account, unused.

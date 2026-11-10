@@ -316,6 +316,12 @@ root.addEventListener("click", async e => {
       D.concept = "";
       D.sub = "";
     }
+    if (d.k === "setup") {
+      // Weekly - 4H is stored as the concept itself; Weekly - Daily - 4H waits for the daily pattern
+      if (D.setup === "w4") D.concept = "Weekly - 4H";
+      else if (D.concept === "Weekly - 4H" || !D.setup) D.concept = "";
+      D.sub = "";
+    }
     if (d.k === "outcome" && d.v === "be" && D.r === "") D.r = "0";
     keep();
     return render();
