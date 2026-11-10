@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.6 — 2026-11-10
+
+- Pattern in Pattern is no longer a 4H entry (it's a Reversal now).
+
 ## 1.4.5 — 2026-11-10
 
 - 4H step: **Channel** as an extra confirmation on a Reversal entry.

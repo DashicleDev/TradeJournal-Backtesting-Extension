@@ -16,7 +16,7 @@ const TJ_PLAN_DEFAULT = {
       3: ["Reversal", "Continuation", "Pattern in Pattern", "Push IC Push", "Weekly - 4H", "Daily Retrace"],
       4: ["Continuation", "Pattern in Pattern", "Push IC Push"],
     },
-    entries: ["Reversal", "Continuation", "Pattern in Pattern", "Deceleration", "Engulfing Candle"],
+    entries: ["Reversal", "Continuation", "Deceleration", "Engulfing Candle"],
     exits: [
       "Take profit",
       "Stop loss",
