@@ -298,6 +298,15 @@ function renderInner() {
           D.wStruct
         )
       )}</div>
+      ${(() => {
+        // Setup: Weekly - Daily - 4H (a daily pattern follows on the daily step) or Weekly - 4H
+        if (D.concept) D.setup = D.concept === "Weekly - 4H" ? "w4" : "wd4";
+        const opts = [
+          fc.some(c => c !== "Weekly - 4H") && ["wd4", "Weekly - Daily - 4H"],
+          fc.includes("Weekly - 4H") && ["w4", "Weekly - 4H"],
+        ].filter(Boolean);
+        return f("Setup", seg("setup", opts, D.setup));
+      })()}
       <div class="row2">${f("Market trend", seg("trend", MS, D.trend))}${f("Market structure", seg("ms", MS, D.ms))}</div>
       <div class="row2">${f("Ranging <em>between two weekly levels</em>", `<div class="segs"><button type="button" class="sg${D.wRange ? " on" : ""}" data-tog="wRange">↔ Ranging</button></div>`)}
         ${f("Weekly pattern", sel("wPat", ["Continuation", "Reversal", "Pattern in Pattern"], D.wPat, "No pattern"))}</div>
@@ -315,16 +324,12 @@ function renderInner() {
         .join("")}</div>`,
         daily: () => `
       ${(() => {
-        // Setup first (Weekly - Daily - 4H or Weekly - 4H); with a daily pattern, pick which one
-        if (D.concept) D.setup = D.concept === "Weekly - 4H" ? "w4" : "wd4";
+        // with Weekly - Daily - 4H (chosen on the weekly step), pick the daily pattern here
+        if (D.setup !== "wd4") return "";
         const pats = fc.filter(c => c !== "Weekly - 4H"),
-          opts = [
-            pats.length && ["wd4", "Weekly - Daily - 4H"],
-            fc.includes("Weekly - 4H") && ["w4", "Weekly - 4H"],
-          ].filter(Boolean),
           v = P.plan.concepts[D.concept] || [],
-          none = D.setup !== "wd4" || !D.concept || !v.length || (v.length === 1 && v[0] === "—");
-        return `${f("Setup", seg("setup", opts, D.setup))}${D.setup === "wd4" ? `<div class="row2">${f("Daily pattern", sel("concept", pats, D.concept, "Choose…"))}${none ? "" : f("Pattern variant <em>optional</em>", sel("sub", v, D.sub, "Choose…"))}</div>` : ""}`;
+          none = !D.concept || !v.length || (v.length === 1 && v[0] === "—");
+        return `<div class="row2">${f("Daily pattern", sel("concept", pats, D.concept, "Choose…"))}${none ? "" : f("Pattern variant <em>optional</em>", sel("sub", v, D.sub, "Choose…"))}</div>`;
       })()}
       ${f("Market structure", seg("dMs", MS, D.dMs))}
       ${f(

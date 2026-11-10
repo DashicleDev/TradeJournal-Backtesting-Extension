@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.3 — 2026-11-10
+
+- **Setup** moved to the weekly step, under phase and inner/outer. The daily step only asks the daily pattern (with Weekly - Daily - 4H).
+
 ## 1.4.2 — 2026-11-10
 
 - Daily step: first pick the **Setup**, Weekly - Daily - 4H or Weekly - 4H. With Weekly - Daily - 4H you then pick the **Daily pattern** and its variant. Saved the same way as before, so the journal reads it unchanged.
