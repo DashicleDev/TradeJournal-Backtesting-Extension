@@ -66,6 +66,7 @@ const blank = () => ({
   struct: "",
   room: false,
   scaleIn: false,
+  channel: false, // extra confirmation on a Reversal entry
   ecTf: "",
   links: {},
   outcome: "",

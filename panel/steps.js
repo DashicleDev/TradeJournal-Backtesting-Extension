@@ -238,6 +238,7 @@ function toDoc() {
     wPatSub: D.wPat ? D.wPatSub : "",
     wRange: !!D.wRange,
     scaleIn: !!D.scaleIn,
+    channel: D.entry4h === "Reversal" && !!D.channel,
     dMs: D.dMs,
     hMs: D.hMs,
     weekly,

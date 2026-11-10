@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.5 — 2026-11-10
+
+- 4H step: **Channel** as an extra confirmation on a Reversal entry.
+
 ## 1.4.4 — 2026-11-10
 
 - **Setup** is now on the Trade step (under pair and direction), so the weekly step stays as it was. Weekly - 4H stays picked when you choose a phase on the weekly step.

@@ -62,6 +62,7 @@ function renderInner() {
     D.entry4h,
     D.hMs && "MS " + (D.hMs === "for" ? "✓" : "✗"),
     hasStruct(D.entry4h) && D.struct && D.struct.replace("bos", "BoS").replace("som", "SoM"),
+    D.entry4h === "Reversal" && D.channel && "Channel",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -368,6 +369,7 @@ function renderInner() {
             )}${D.struct === "som" ? f("4H room", `<div class="segs"><button type="button" class="sg${D.room ? " on" : ""}" data-tog="room">Room</button></div>`) : ""}</div>`
           : ""
       }
+      ${D.entry4h === "Reversal" ? f("Extra confirmation", `<div class="segs"><button type="button" class="sg${D.channel ? " on" : ""}" data-tog="channel">Channel</button></div>`) : ""}
       ${f("Scale-in", `<div class="segs"><button type="button" class="sg${D.scaleIn ? " on" : ""}" data-tog="scaleIn">Scale-in</button></div>`)}
       ${
         D.entry4h === "Engulfing Candle"
