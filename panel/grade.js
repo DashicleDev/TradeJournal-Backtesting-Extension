@@ -45,19 +45,15 @@ const grCrit = (t, k) =>
       ? t.channel && t.entry4h === "Reversal"
         ? "for"
         : ""
-      : k.startsWith("e:")
-        ? t.entry4h === k.slice(2)
-          ? "for"
-          : ""
-        : k === "dMs"
-          ? t.dMs || ""
-          : k === "hMs"
-            ? t.hMs || ""
-            : k.startsWith("d:")
-              ? (t.dPros || []).includes(k.slice(2))
-                ? "for"
-                : ""
-              : (t.weekly || {})[k] || "";
+      : k === "dMs"
+        ? t.dMs || ""
+        : k === "hMs"
+          ? t.hMs || ""
+          : k.startsWith("d:")
+            ? (t.dPros || []).includes(k.slice(2))
+              ? "for"
+              : ""
+            : (t.weekly || {})[k] || "";
 
 // { g, why } for the trade being logged, or null (grades off, invest, no phase or no analysis yet)
 function liveGrade() {
