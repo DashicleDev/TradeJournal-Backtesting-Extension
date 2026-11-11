@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Trade Journal for TradingView",
   "short_name": "Trade Journal",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "Log backtest, live and invest trades from TradingView straight into your Trade Journal: analysis, result and W/D/4H snapshots.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -50,6 +50,7 @@
         "panel/shell.js",
         "panel/position.js",
         "panel/steps.js",
+        "panel/grade.js",
         "panel/render.js",
         "panel/events.js",
         "panel/boot.js"

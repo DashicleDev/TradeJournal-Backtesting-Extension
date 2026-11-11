@@ -105,6 +105,16 @@ const handlers = {
           (st(a) === "active" ? 0 : 1) - (st(b) === "active" ? 0 : 1) || String(a.name).localeCompare(String(b.name))
       );
   },
+  // your role's features (e.g. { grade: true }), as the journal reads them
+  async features() {
+    const s = await session();
+    if (!s) return {};
+    const m = await rest("app_members?select=role&user_id=eq." + s.uid);
+    const role = (m[0] && m[0].role) || "user";
+    let r = await rest("app_roles?select=features&key=eq." + encodeURIComponent(role));
+    if (!r.length && role !== "user") r = await rest("app_roles?select=features&key=eq.user");
+    return (r[0] && r[0].features) || {};
+  },
   async jsettings() {
     const rows = await rest("docs?select=data&id=eq.settings");
     return (rows[0] && rows[0].data) || null;

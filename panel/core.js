@@ -167,9 +167,14 @@ async function loadJLook() {
     if (st) {
       jLook = { theme: st.theme || "system", accent: st.accent || "blue" };
       store({ jLook });
+      jRules = st.gradeRules || null; // for the live grade (panel/grade.js)
     }
   } catch {}
+  try {
+    jFeat = (await call("features")) || {};
+  } catch {}
   applyLook();
+  if (typeof render === "function") render(); // the live grade needs the rules and features
 }
 
 /* ---------- settings: kept in this browser and in your journal account ---------- */
