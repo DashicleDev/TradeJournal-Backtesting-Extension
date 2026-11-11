@@ -22,6 +22,13 @@ function grRules() {
       flags: list(x.flags, d.flags),
       min: Number.isFinite(+x.min) && +x.min >= 0 ? Math.round(+x.min) : d.min,
       inner: ["", "b", "x"].includes(x.inner) ? x.inner : x.innerB === true ? "b" : d.inner,
+      // per 4H entry type: "" same rules · "b" at most B · "x" not valid (C)
+      ent: Object.fromEntries(
+        (P.plan.entries || []).map(e => {
+          const v = (x.ent || d.ent || {})[e];
+          return [e, v === "b" || v === "x" ? v : ""];
+        })
+      ),
     };
   }
   return out;
@@ -35,18 +42,22 @@ const grCrit = (t, k) =>
         : "for"
       : ""
     : k === "chan"
-      ? t.channel
+      ? t.channel && t.entry4h === "Reversal"
         ? "for"
         : ""
-      : k === "dMs"
-        ? t.dMs || ""
-        : k === "hMs"
-          ? t.hMs || ""
-          : k.startsWith("d:")
-            ? (t.dPros || []).includes(k.slice(2))
-              ? "for"
-              : ""
-            : (t.weekly || {})[k] || "";
+      : k.startsWith("e:")
+        ? t.entry4h === k.slice(2)
+          ? "for"
+          : ""
+        : k === "dMs"
+          ? t.dMs || ""
+          : k === "hMs"
+            ? t.hMs || ""
+            : k.startsWith("d:")
+              ? (t.dPros || []).includes(k.slice(2))
+                ? "for"
+                : ""
+              : (t.weekly || {})[k] || "";
 
 // { g, why } for the trade being logged, or null (grades off, invest, no phase or no analysis yet)
 function liveGrade() {
@@ -58,6 +69,8 @@ function liveGrade() {
   if (!P_) return null;
   if (!Object.keys(t.weekly || {}).length && !t.dMs && !t.hMs && !(t.dPros || []).length) return null;
   if (P_.inner === "x" && t.wStruct === "inner") return { g: "C", why: "Inner structure not valid in phase " + t.fase };
+  const cap = (P_.ent || {})[t.entry4h] || "";
+  if (cap === "x") return { g: "C", why: t.entry4h + " entry not valid in phase " + t.fase };
   const miss = P_.req.filter(k => grCrit(t, k) !== "for");
   if (miss.length) return { g: "C", why: "Missing: " + miss.map(grLabel).join(", ") };
   const ag = P_.flags.filter(k => grCrit(t, k) === "against");
@@ -65,6 +78,7 @@ function liveGrade() {
   const ex = P_.extras.filter(k => grCrit(t, k) === "for");
   if (ex.length >= P_.min && P_.min > 0) {
     if (P_.inner === "b" && t.wStruct === "inner") return { g: "B", why: "Inner structure: at most B" };
+    if (cap === "b") return { g: "B", why: t.entry4h + " entry: at most B" };
     return { g: "A", why: ex.map(grLabel).join(", ") };
   }
   return { g: "B", why: ex.length ? ex.map(grLabel).join(", ") : "No extras" };
