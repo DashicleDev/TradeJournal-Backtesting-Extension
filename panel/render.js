@@ -13,6 +13,12 @@ const MS = [
   ["for", "✓ With"],
   ["against", "✗ Against"],
 ];
+// the market trend as you see it; the journal works out with/against from your direction
+const TREND = [
+  ["bull", "↑ Bullish"],
+  ["bear", "↓ Bearish"],
+  ["range", "↔ Ranging"],
+];
 function render() {
   try {
     renderInner();
@@ -49,9 +55,8 @@ function renderInner() {
   const wsum = [
     D.fase && "Phase " + D.fase,
     D.wStruct && (D.wStruct === "inner" ? "Inner" : "Outer"),
-    D.trend && "Trend " + (D.trend === "for" ? "✓" : "✗"),
+    (TREND.find(([k]) => k === D.trend) || [])[1],
     D.ms && "MS " + (D.ms === "for" ? "✓" : "✗"),
-    D.wRange && "Ranging",
     D.wPat,
     (pros || cons) && `${pros}+ ${cons}−`,
   ]
@@ -319,9 +324,8 @@ function renderInner() {
         )
       )}</div>
 
-      <div class="row2">${f("Market trend", seg("trend", MS, D.trend))}${f("Market structure", seg("ms", MS, D.ms))}</div>
-      <div class="row2">${f("Ranging <em>between two weekly levels</em>", `<div class="segs"><button type="button" class="sg${D.wRange ? " on" : ""}" data-tog="wRange">↔ Ranging</button></div>`)}
-        ${f("Weekly pattern", sel("wPat", ["Continuation", "Reversal", "Pattern in Pattern"], D.wPat, "No pattern"))}</div>
+      <div class="row2">${f("Market trend", seg("trend", TREND, D.trend))}${f("Market structure", seg("ms", MS, D.ms))}</div>
+      <div class="row2">${f("Weekly pattern", sel("wPat", ["Continuation", "Reversal", "Pattern in Pattern"], D.wPat, "No pattern"))}</div>
       ${D.wPat && D.wPat !== "Reversal" ? f("Pattern variant <em>optional</em>", sel("wPatSub", P.plan.concepts[D.wPat] || [], D.wPatSub, "Not set")) : ""}
       <div class="row2">${["for", "against"]
         .map(side => {

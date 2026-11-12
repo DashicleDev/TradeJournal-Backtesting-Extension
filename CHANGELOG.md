@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.14 — 2026-11-13
+
+- Market trend is Bullish / Bearish / Ranging, as in the journal (1.3.17). Ranging replaces the separate Ranging button.
+
 ## 1.4.13 — 2026-11-12
 
 - Weekly cons offer only the criteria the journal allows as a con (Fib active and Last CC), read from the journal's `plan.json`; the live grade uses the same list.

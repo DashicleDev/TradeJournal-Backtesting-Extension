@@ -211,7 +211,13 @@ function toDoc() {
   }
   const weekly = { ...D.w };
   if (D.ms) weekly.ms = D.ms;
-  if (D.trend) weekly.trend = D.trend;
+  // Bullish / Bearish -> with / against your direction (a draft from before 1.4.14 already has with / against)
+  const tr = ["for", "against"].includes(D.trend)
+    ? D.trend
+    : (D.trend === "bull" || D.trend === "bear") && D.dir
+      ? (D.trend === "bull") === (D.dir === "long") ? "for" : "against"
+      : "";
+  if (tr) weekly.trend = tr;
   if (D.wPat) weekly.pattern = "for";
   const st = hasStruct(D.entry4h) ? D.struct : "",
     bos = st === "bos",
@@ -236,7 +242,7 @@ function toDoc() {
     wStruct: D.wStruct,
     wPat: D.wPat,
     wPatSub: D.wPat ? D.wPatSub : "",
-    wRange: !!D.wRange,
+    wRange: D.trend === "range" || (!!D.wRange && !D.trend),
     scaleIn: !!D.scaleIn,
     channel: D.entry4h === "Reversal" && !!D.channel,
     dMs: D.dMs,
