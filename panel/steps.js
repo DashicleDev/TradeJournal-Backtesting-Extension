@@ -99,7 +99,8 @@ async function goStep(i) {
       }
     }
   }
-  if ((s[0] === "result" || s[0] === "exec") && !D.closeDate) await fromPos();
+  // the close date always follows the position's right edge when you reach the result
+  if (s[0] === "result" || s[0] === "exec") await fromPos(["closeDate"]);
   render();
 }
 async function startSteps(fresh) {

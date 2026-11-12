@@ -79,6 +79,7 @@ async function fromPos(force = []) {
   set("dir", p.dir);
   set("date", day(p.t0));
   set("closeDate", day(p.t1));
+  posEdge = day(p.t1);
   if (INV()) {
     if (p.entry) set("sEntry", String(p.entry));
     if (p.sl) set("sStop", String(+p.sl.toFixed(4)));
@@ -98,6 +99,22 @@ async function fromPos(force = []) {
   keep();
   return p;
 }
+// On the result step, a re-dragged right edge moves the close date with it. Checked when the mouse comes back
+// to the panel (after the drag), so no timer runs; a date you type yourself stays until the edge moves again.
+let posEdge = ""; // the right edge's day when we last read the position
+panel.addEventListener("pointerenter", async () => {
+  const on = steps()[step] && ["result", "exec"].includes(steps()[step][0]);
+  if (!on || !user || view !== "steps" || logging || settings || !D.posId) return;
+  await getPos();
+  const p = curPos(),
+    t1 = p ? day(p.t1) : "";
+  if (t1 && t1 !== posEdge && t1 !== D.closeDate) {
+    D.closeDate = t1;
+    keep();
+    render();
+  }
+  if (t1) posEdge = t1;
+});
 const replayDate = async () => {
   await ask();
   return dateOf(info.replay);
