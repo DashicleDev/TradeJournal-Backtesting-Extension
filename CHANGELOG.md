@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.13 — 2026-11-12
+
+- Weekly cons offer only the criteria the journal allows as a con (Fib active and Last CC), read from the journal's `plan.json`; the live grade uses the same list.
+
 ## 1.4.12 — 2026-11-12
 
 - New test, `node tests/grade-parity.js`: checks that the live grade gives the same result as the journal's grade, and that the journal's `plan.json` is up to date. Run it after changing the grade rules in either repo.
