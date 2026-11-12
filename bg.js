@@ -20,7 +20,10 @@ async function authCall(grant, body) {
     body: JSON.stringify(body),
   });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(j.error_description || j.msg || j.message || "Sign-in failed (" + r.status + ")");
+  if (!r.ok)
+    throw Object.assign(new Error(j.error_description || j.msg || j.message || "Sign-in failed (" + r.status + ")"), {
+      status: r.status,
+    });
   const s = {
     access: j.access_token,
     refresh: j.refresh_token,
@@ -39,8 +42,11 @@ async function session() {
     try {
       s = await authCall("refresh_token", { refresh_token: s.refresh });
     } catch (e) {
-      await chrome.storage.local.remove("session");
-      return null;
+      // only sign out when the server rejected the login; offline, keep it and try again next time
+      if (e.status === 400 || e.status === 401) {
+        await chrome.storage.local.remove("session");
+        return null;
+      }
     }
   }
   return s;
