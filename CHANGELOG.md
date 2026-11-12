@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.11 — 2026-11-12
+
+- You stay signed in when the panel opens without a connection (for example right after the laptop wakes up). You're only signed out when your login has really expired.
+
 ## 1.4.7 — 2026-11-11
 
 - **Live setup grade** while logging a forex trade: A / B / C with the reason, at the bottom of the panel, updating as you fill in the analysis. Uses your own grade rules from the journal and only shows when your role has grades on.
