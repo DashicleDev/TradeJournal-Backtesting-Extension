@@ -25,7 +25,8 @@ function grRules() {
     out[ph] = {
       req: list(x.req, d.req),
       extras: list(x.extras, d.extras),
-      flags: list(x.flags, d.flags),
+      // only criteria that can be against, as in the journal (older plan.json has no list: allow all)
+      flags: list(x.flags, d.flags).filter(k => !G.against || G.against.includes(k)),
       min: Number.isFinite(+x.min) && +x.min >= 0 ? Math.round(+x.min) : d.min,
       inner: ["", "b", "x"].includes(x.inner) ? x.inner : x.innerB === true ? "b" : d.inner,
       // per 4H entry type: "" same rules · "b" at most B · "x" not valid (C)

@@ -326,8 +326,10 @@ function renderInner() {
       <div class="row2">${["for", "against"]
         .map(side => {
           const lab = side === "for" ? "Pros" : "Cons",
-            sel = wc.filter(([k]) => D.w[k] === side),
-            rest = wc.filter(([k]) => !D.w[k]);
+            ag = (P.grade || {}).against, // criteria that can be a con, from the journal's plan.json
+            list = side === "for" || !ag ? wc : wc.filter(([k]) => ag.includes(k) || D.w[k] === side),
+            sel = list.filter(([k]) => D.w[k] === side),
+            rest = list.filter(([k]) => !D.w[k]);
           return f(
             lab,
             `<div class="ms ${side}"><div class="msbox" data-dd="${side}">${sel.map(([k, l]) => `<span class="mchip ${side}">${esc(l)}<button type="button" data-unw="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose criteria…</span>`}<i>▾</i></div>${dd === side ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addw="${k}" data-side="${side}">${esc(l)}</button>`).join("") : `<span class="msph">All criteria used</span>`}</div>` : ""}</div>`

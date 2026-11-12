@@ -17,7 +17,7 @@ const read = (...p) => fs.readFileSync(path.join(...p), "utf8");
 // the journal: core.js (PLAN) + plan.js (gradeOf), with grades switched on
 const J = vm.createContext({ document: {}, feat: () => true });
 vm.runInContext(read(JOURNAL, "js", "core.js") + read(JOURNAL, "js", "plan.js"), J);
-vm.runInContext("this.api = { gradeOf, grNorm, GR_CRIT, GR_DEF, entries: PLAN.entries };", J);
+vm.runInContext("this.api = { gradeOf, grNorm, GR_CRIT, GR_DEF, entries: PLAN.entries, against: GR_AGAINST };", J);
 const journal = J.api;
 
 // the extension: panel/grade.js with the plan.json the journal publishes
@@ -32,6 +32,7 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 assert(same(plan.grade.crit, journal.GR_CRIT), "plan.json grade.crit is out of date: run scripts/build_plan.py");
 assert(same(plan.grade.def, journal.GR_DEF), "plan.json grade.def is out of date: run scripts/build_plan.py");
 assert(same(plan.plan.entries, journal.entries), "plan.json plan.entries is out of date: run scripts/build_plan.py");
+assert(same(plan.grade.against, journal.against), "plan.json grade.against is out of date: run scripts/build_plan.py");
 
 // rule sets that use every kind of rule (requirements, extras, red flags, limits, old and odd values)
 const RULES = [
