@@ -7,6 +7,12 @@
 let jRules = null, // your grade rules from the journal settings (null = the defaults)
   jFeat = {}; // your role's features
 
+// grade limits on the setup itself, as in the journal (js/plan.js GR_SETUP)
+const GR_SETUP = [
+  ["outer", "Outer structure", t => t.wStruct === "outer"],
+  ["wd4h", "Weekly - Daily - 4H setup", t => !!t.concept && t.concept !== "Weekly - 4H"],
+  ["w4h", "Weekly - 4H setup", t => t.concept === "Weekly - 4H"],
+];
 function grRules() {
   const G = P.grade || null;
   if (!G) return null;
@@ -27,6 +33,12 @@ function grRules() {
         (P.plan.entries || []).map(e => {
           const v = (x.ent || d.ent || {})[e];
           return [e, v === "b" || v === "x" ? v : ""];
+        })
+      ),
+      setup: Object.fromEntries(
+        GR_SETUP.map(([k]) => {
+          const v = (x.setup || d.setup || {})[k];
+          return [k, v === "b" || v === "x" ? v : ""];
         })
       ),
     };
@@ -64,17 +76,21 @@ function liveGrade() {
     P_ = R[String(t.fase || "")];
   if (!P_) return null;
   if (!Object.keys(t.weekly || {}).length && !t.dMs && !t.hMs && !(t.dPros || []).length) return null;
-  if (P_.inner === "x" && t.wStruct === "inner") return { g: "C", why: "Inner structure not valid in phase " + t.fase };
-  const cap = (P_.ent || {})[t.entry4h] || "";
-  if (cap === "x") return { g: "C", why: t.entry4h + " entry not valid in phase " + t.fase };
+  // the limits this trade hits: [label, "b" | "x"]
+  const lim = [
+    ...(t.wStruct === "inner" && P_.inner ? [["Inner structure", P_.inner]] : []),
+    ...GR_SETUP.filter(([k, , hit]) => (P_.setup || {})[k] && hit(t)).map(([k, l]) => [l, P_.setup[k]]),
+    ...((P_.ent || {})[t.entry4h] ? [[t.entry4h + " entry", P_.ent[t.entry4h]]] : []),
+  ];
+  const notValid = lim.find(([, v]) => v === "x");
+  if (notValid) return { g: "C", why: notValid[0] + " not valid in phase " + t.fase };
   const miss = P_.req.filter(k => grCrit(t, k) !== "for");
   if (miss.length) return { g: "C", why: "Missing: " + miss.map(grLabel).join(", ") };
   const ag = P_.flags.filter(k => grCrit(t, k) === "against");
   if (ag.length) return { g: "C", why: "Against: " + ag.map(grLabel).join(", ") };
   const ex = P_.extras.filter(k => grCrit(t, k) === "for");
   if (ex.length >= P_.min && P_.min > 0) {
-    if (P_.inner === "b" && t.wStruct === "inner") return { g: "B", why: "Inner structure: at most B" };
-    if (cap === "b") return { g: "B", why: t.entry4h + " entry: at most B" };
+    if (lim.length) return { g: "B", why: lim[0][0] + ": at most B" };
     return { g: "A", why: ex.map(grLabel).join(", ") };
   }
   return { g: "B", why: ex.length ? ex.map(grLabel).join(", ") : "No extras" };
