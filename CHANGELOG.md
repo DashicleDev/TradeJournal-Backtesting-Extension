@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.12 — 2026-11-12
+
+- New test, `node tests/grade-parity.js`: checks that the live grade gives the same result as the journal's grade, and that the journal's `plan.json` is up to date. Run it after changing the grade rules in either repo.
+
 ## 1.4.11 — 2026-11-12
 
 - You stay signed in when the panel opens without a connection (for example right after the laptop wakes up). You're only signed out when your login has really expired.
