@@ -157,6 +157,10 @@ const handlers = {
     });
     return true;
   },
+  // The panel in a Replay window says so, to tell the journal when that window closes.
+  async replayWin(msg, sender) {
+    if (sender.tab) await set({ replayWin: sender.tab.windowId });
+  },
   // A trade the journal's Replay window asked to open (#tj-trade=<id> in the chart address), for the panel to edit.
   async openTrade({ id }) {
     if (!/^[A-Za-z0-9_-]{1,40}$/.test(id || "")) return null;
@@ -177,6 +181,14 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     e => reply({ ok: false, error: String((e && e.message) || e) })
   );
   return true;
+});
+
+// The Replay window closed: the journal tab unlocks.
+chrome.windows.onRemoved.addListener(async id => {
+  if ((await get("replayWin")) !== id) return;
+  await chrome.storage.local.remove("replayWin");
+  for (const t of await chrome.tabs.query({ url: "https://dashicledev.github.io/TradeJournal/*" }))
+    chrome.tabs.sendMessage(t.id, { type: "replayClosed" }).catch(() => {});
 });
 
 chrome.action.onClicked.addListener(tab => {

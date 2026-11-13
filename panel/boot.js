@@ -38,7 +38,10 @@ async function pickUpTrade() {
   if (!id) return;
   history.replaceState(null, "", location.pathname + location.search + location.hash.replace(/&tj-trade=[^&]*/, ""));
   const t = await call("openTrade", { id }).catch(() => null);
-  if (t) requestOpen(t);
+  if (!t) return;
+  sessionStorage.setItem("tjReplayWin", "1"); // this window came from the journal's Replay: it closes after saving
+  call("replayWin").catch(() => {});
+  requestOpen(t);
 }
 // the same chart window is reused for the next Replay: the page doesn't reload, only the address changes
 addEventListener("hashchange", () => user && pickUpTrade());

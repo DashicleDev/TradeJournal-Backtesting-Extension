@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.28 — 2026-11-13
+
+- **Fix: the journal tells when the Replay window closes** (it can't see that itself: TradingView cuts the link to a window the journal opens), so the journal stays locked until then. The window is marked as a Replay window by the panel instead of by its name, which TradingView's page also drops. Needs journal 1.3.41.
+
 ## 1.4.27 — 2026-11-13
 
 - **Replay from the journal opens in its own chart window.** The journal opens the window itself, so nothing has to find your TradingView tab or be reloaded after the extension updates. The panel there reads the trade id from the address (`#tj-trade=`), opens it for editing, and the window closes after Save changes. The journal-side script (`replay-link.js`) and the tab search in the background script are gone. The trade opens on the Weekly step (before: Result). Needs journal 1.3.40.
