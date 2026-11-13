@@ -31,10 +31,10 @@ const SLOTS = [
   ["wk", "Weekly"],
 ];
 const hasStruct = e => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
-// 4H pros: Channel goes with Reversal, Continuation and Engulfing entries; the Engulfing candle pro goes with Reversal and Continuation
+// 4H pros: Channel goes with Reversal, Continuation and Engulfing entries; the Engulfing candle pro goes with Reversal, Continuation and Deceleration; Room goes with SoM, Engulfing and Deceleration entries
 const chanOk = e => e === "Reversal" || e === "Continuation" || e === "Engulfing Candle";
-const engOk = e => e === "Reversal" || e === "Continuation";
-const roomOk = (e, s) => s === "som" || e === "Engulfing Candle";
+const engOk = e => e === "Reversal" || e === "Continuation" || e === "Deceleration";
+const roomOk = (e, s) => s === "som" || e === "Engulfing Candle" || e === "Deceleration";
 // the 4H pros, keyed by the trade field each one is saved in; hproOk: does the pro fit this entry (and structure)
 const HPROS = [
   ["engulf", "Engulfing candle"],
