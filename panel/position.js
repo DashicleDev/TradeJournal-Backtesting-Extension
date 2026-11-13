@@ -79,7 +79,7 @@ async function fromPos(force = []) {
   set("dir", p.dir);
   set("date", day(p.t0));
   set("closeDate", day(p.t1));
-  posEdge = day(p.t1);
+  posEdge = edgesOf(p);
   if (INV()) {
     if (p.entry) set("sEntry", String(p.entry));
     if (p.sl) set("sStop", String(+p.sl.toFixed(4)));
@@ -99,26 +99,34 @@ async function fromPos(force = []) {
   keep();
   return p;
 }
-// On the result step, a re-dragged right edge moves the close date with it. Checked when a drag on the chart ends
-// (mouse released) and when the mouse comes back to the panel, so no timer runs; a date you type yourself stays
-// until the edge moves again.
-let posEdge = "", // the right edge's day when we last read the position
+// From the step that sets the dates (4H / LTF, or Execution) onwards, re-dragging the position's edges moves the
+// dates with them: left edge -> date, right edge -> close date. Checked when a drag on the chart ends (mouse or arrow key released)
+// and when the mouse comes back to the panel, so no timer runs; a date you type yourself stays until its edge moves.
+let posEdge = { date: "", closeDate: "" }, // each edge's day when we last read the position
   edgeBusy = false;
+const edgesOf = p => ({ date: day(p.t0), closeDate: day(p.t1) });
 async function edgeCheck() {
-  const on = steps()[step] && ["result", "exec"].includes(steps()[step][0]);
+  const S = steps(),
+    on = step >= S.findIndex(x => x[0] === dateStep());
   // "logging" = a trade is being logged (you're in the steps), so it must be on here
   if (edgeBusy || !on || panel.hidden || !user || view !== "steps" || !logging || settings || !D.posId) return;
   edgeBusy = true;
   try {
     await getPos();
-    const p = curPos(),
-      t1 = p ? day(p.t1) : "";
-    if (t1 && t1 !== posEdge && t1 !== D.closeDate) {
-      D.closeDate = t1;
+    const p = curPos();
+    if (!p) return;
+    const now = edgesOf(p);
+    let moved = false;
+    for (const k of ["date", "closeDate"])
+      if (now[k] && now[k] !== posEdge[k] && now[k] !== D[k]) {
+        D[k] = now[k];
+        moved = true;
+      }
+    posEdge = { date: now.date || posEdge.date, closeDate: now.closeDate || posEdge.closeDate };
+    if (moved) {
       keep();
       render();
     }
-    if (t1) posEdge = t1;
   } finally {
     edgeBusy = false;
   }
@@ -126,6 +134,8 @@ async function edgeCheck() {
 panel.addEventListener("pointerenter", edgeCheck);
 // capture phase on window, so the chart can't swallow it; a short wait lets TradingView store the new edge first
 addEventListener("pointerup", () => setTimeout(edgeCheck, 250), true);
+// arrow keys nudge a selected drawing too
+addEventListener("keyup", e => e.key.startsWith("Arrow") && setTimeout(edgeCheck, 250), true);
 const replayDate = async () => {
   await ask();
   return dateOf(info.replay);

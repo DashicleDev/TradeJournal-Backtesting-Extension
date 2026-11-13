@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.18 — 2026-11-13
+
+- **The opening date follows the position too.** From the 4H step on (Execution for invest), moving the Long/Short position's left edge updates the date, and moving the right edge updates the close date, after a mouse drag or an arrow-key nudge. A date you type yourself stays until its edge moves.
+
 ## 1.4.17 — 2026-11-13
 
 - Fix: re-dragging the position's right edge on the Result step still didn't update the close date. The check skipped itself whenever a trade was being logged, which is always the case on the Result step.
