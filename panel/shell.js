@@ -156,7 +156,7 @@ addEventListener("message", async e => {
     slot = slotOf(info.interval);
   }
   if (!slot) {
-    msg = `Snapshot caught, but which timeframe? Pick a 📷 button first, then take it again.`;
+    msg = `Snapshot caught, but which timeframe? Press Continue on a weekly, daily or 4H step, then take it again.`;
     return render();
   }
   D.links[slot] = "https://www.tradingview.com/x/" + e.data.id + "/";
