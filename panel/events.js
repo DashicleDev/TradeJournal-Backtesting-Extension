@@ -52,6 +52,18 @@ root.addEventListener("click", async e => {
     msg = "";
     return startSteps(fresh);
   }
+  // editing a trade opened from the journal's Replay link
+  if (d.act === "canceledit") return cancelEdit();
+  if (d.act === "askcancel") {
+    askOpen = null;
+    return render();
+  }
+  if (d.act === "askdiscard") return openEdit(askOpen);
+  if (d.act === "asksave") {
+    const t = askOpen;
+    if (await save()) return openEdit(t); // a missing field keeps the question up, with what's missing
+    return render();
+  }
   if (d.act === "stoplog") {
     logging = false;
     store({ logging });

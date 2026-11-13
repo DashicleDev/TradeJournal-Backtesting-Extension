@@ -30,4 +30,14 @@ async function boot() {
   panel.hidden = !open;
   pill.hidden = open;
   render();
+  if (user) pickUpTrade();
 })();
+// A trade the journal's Replay link asked to open in this tab (bg.js keeps it for the tab it opened)
+async function pickUpTrade() {
+  const t = await call("openTrade").catch(() => null);
+  if (t) requestOpen(t);
+}
+// same pair already open: the page doesn't reload, so watch for a new request
+chrome.storage.onChanged.addListener((ch, area) => {
+  if (area === "local" && ch.openTrade && ch.openTrade.newValue && user) pickUpTrade();
+});

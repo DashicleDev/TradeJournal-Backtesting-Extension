@@ -85,7 +85,7 @@ async function goStep(i) {
     render();
     const ok = await setTf(s[2]);
     msg = ok ? "" : `Switch the chart to ${s[1]} yourself.`;
-    if (s[0] === dateStep() && !D.date) {
+    if (s[0] === dateStep() && !D.date && !editDoc) {
       await fromPos();
       if (!D.date) {
         const dt = await replayDate();
@@ -100,7 +100,8 @@ async function goStep(i) {
     }
   }
   // the close date always follows the position's right edge when you reach the result
-  if (s[0] === "result" || s[0] === "exec") await fromPos(["closeDate"]);
+  // (not while editing a saved trade: the replayed chart's drawings must not overwrite its dates)
+  if ((s[0] === "result" || s[0] === "exec") && !editDoc) await fromPos(["closeDate"]);
   render();
 }
 async function startSteps(fresh) {
@@ -125,6 +126,7 @@ async function next() {
     return goStep(step + 1);
   }
   if (s[0] === "result" || s[0] === "exec") return save();
+  if (editDoc && D.links[s[0]]) return goStep(step + 1); // editing: keep the chart it already has (× to retake)
   busy = true;
   msg = `Grabbing the ${s[1]} chart…`;
   render();
@@ -379,15 +381,21 @@ async function save() {
   busy = true;
   render();
   try {
-    const doc = toDoc();
+    const o = editDoc,
+      // editing: keep what only the journal has (stored screenshots, reviews, …): the save replaces the whole trade
+      doc = o
+        ? { ...o, ...toDoc(), id: o.id, created: o.created, btDate: o.btDate ?? null, shots: o.shots || {}, source: o.source }
+        : toDoc();
     await call("save", { doc });
     savedId = doc.id;
+    editDoc = null;
+    store({ edit: null });
     const pj = D.project,
       ac = D.account,
       pr = D.pair;
     D = { ...blank(), project: pj, account: ac, pair: pr };
     store({ draft: D, lastProject: pj, lastAccount: ac });
-    msg = `Saved ${doc.pair}${INV() ? "" : " " + doc.dir}${doc.status === "missed" ? " (missed)" : ""} to ${LIVE() ? ac || "Live" : (projects.find(p => p.id === pj) || {}).name || "Backtest"}.`;
+    msg = `${o ? "Updated" : "Saved"} ${doc.pair}${INV() ? "" : " " + doc.dir}${doc.status === "missed" ? " (missed)" : ""} to ${LIVE() ? ac || "Live" : (projects.find(p => p.id === pj) || {}).name || "Backtest"}.`;
     if (view === "steps") {
       step = 0;
       logging = false;
@@ -395,7 +403,107 @@ async function save() {
     }
   } catch (e) {
     msg = "Couldn't save: " + e.message;
+    busy = false;
+    render();
+    return false;
   }
   busy = false;
+  render();
+  return true;
+}
+
+/* ---------- edit a saved trade (opened from the journal's Replay link) ---------- */
+// the panel draft of a saved forex trade: the reverse of the forex half of toDoc()
+function fromDoc(t) {
+  const w = { ...(t.weekly || {}) },
+    s = v => (v == null ? "" : String(v));
+  const ms = w.ms || "",
+    rel = w.trend;
+  delete w.ms;
+  delete w.trend;
+  delete w.pattern;
+  return {
+    ...blank(),
+    project: t.project || "",
+    account: t.account || "",
+    pair: t.pair || "",
+    date: t.date || "",
+    closeDate: t.closeDate || "",
+    dir: t.dir || "",
+    fase: s(t.fase),
+    wStruct: t.wStruct || "",
+    // with / against the trade back to the Bullish / Bearish you see on the chart
+    trend:
+      t.wRange || rel === "range"
+        ? "range"
+        : (rel === "for" || rel === "against") && t.dir
+          ? (rel === "for") === (t.dir === "long") ? "bull" : "bear"
+          : rel || "",
+    ms,
+    wRange: !!t.wRange,
+    wPat: t.wPat || "",
+    wPatSub: t.wPatSub || "",
+    w,
+    concept: t.concept || "",
+    setup: t.concept === "Weekly - 4H" ? "w4" : t.concept ? "wd4" : "",
+    sub: t.sub || "",
+    dMs: t.dMs || "",
+    dPros: Array.isArray(t.dPros) ? t.dPros.slice() : [],
+    entry4h: t.entry4h || "",
+    hMs: t.hMs || "",
+    struct: t.struct || (t.bos === "ja" ? "bos" : t.bos === "nee" ? "som" : ""),
+    room: t.room === "ja",
+    scaleIn: !!t.scaleIn,
+    channel: !!t.channel,
+    ecTf: t.ecTf || "",
+    links: { ...(t.shotLinks || {}) },
+    outcome: t.outcome || "",
+    r: s(t.r),
+    maxR: s(t.maxR),
+    exit: t.exitReason || "",
+    evaluation: t.evaluation || "",
+    notes: t.notes || "",
+    planEntry: s(t.planEntry),
+    slPips: s(t.slPips),
+    tpPips: s(t.tpPips),
+    missed: t.status === "missed",
+  };
+}
+// an unsaved new trade is in the panel (the same test the start screen uses)
+const hasDraft = () =>
+  logging &&
+  !editDoc &&
+  !!((INV() ? D.sPhase || D.s12Ms || D.s6Ms : D.dir || D.fase || D.concept || D.entry4h) || Object.keys(D.links).length);
+// open a saved trade for editing; with an unsaved new trade in the panel, ask first (askOpen)
+async function requestOpen(t) {
+  if (!t || t.kind || t.market === "stocks") return;
+  if (hasDraft()) {
+    askOpen = t;
+    if (!open) toggle(true);
+    return render();
+  }
+  await openEdit(t);
+}
+async function openEdit(t) {
+  askOpen = null;
+  editDoc = t;
+  mkt = "fx";
+  tmode = t.mode === "live" ? "live" : "backtest";
+  D = fromDoc(t);
+  logging = true;
+  view = "steps";
+  settings = false;
+  msg = "";
+  store({ edit: t, draft: D, mkt, tmode, logging });
+  if (!open) toggle(true);
+  await goStep(steps().findIndex(x => x[0] === "result"));
+}
+function cancelEdit() {
+  editDoc = null;
+  D = { ...blank(), project: D.project, account: D.account };
+  step = 0;
+  logging = false;
+  msg = "";
+  store({ edit: null, draft: D, step, logging });
   render();
 }

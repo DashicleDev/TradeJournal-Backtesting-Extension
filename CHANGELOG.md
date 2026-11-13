@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.22 — 2026-11-13
+
+- **Replay opens the trade in the panel for editing.** A Replay ↗ click in the journal (trade sheet or re-evaluate game) loads that trade into the panel on the Result step, in its own live or backtest mode, with "Editing EURUSD long · 6 Aug 2026" and Cancel edit at the top. Save changes updates the same trade; screenshots, reviews and other journal-only data stay. While editing, the panel doesn't read the chart's positions on its own (⟳ from chart still works), and Continue on a timeframe that already has its chart keeps it. If you were logging an unsaved new trade, the panel asks first: save it, discard it, or cancel.
+- New test: `node tests/edit-roundtrip.js` (a trade opened and saved unchanged must stay identical).
+
 ## 1.4.21 — 2026-11-13
 
 - **Calmer panel (unslop polish)**: section headers and titles in sentence case instead of spaced capitals, lighter headings, spacing on a 4px grid and one corner radius for controls. No coloured glow under the TJ button or around the candle-close alert. Continue on a timeframe step shows a camera line icon instead of the 📷 emoji (hover: takes a snapshot, then continues). Polish done with unslop by Damir Sokolovsky (@heydamir), CC BY 4.0.

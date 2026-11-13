@@ -7,6 +7,14 @@ const seg = (k, opts, v) =>
 // camera line icon (lucide): Continue on a timeframe step also takes the chart snapshot
 const CAM =
   '<svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>';
+// "EURUSD long · 6 Aug 2026"
+const tradeLabel = t =>
+  [`${t.pair || "?"} ${t.dir || ""}`.trim(), t.date && new Date(t.date + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })]
+    .filter(Boolean)
+    .join(" · ");
+// a trade from the journal's Replay link waits while an unsaved new trade is in the panel
+const askBox = () =>
+  `<div class="ask"><p>Open <b>${esc(tradeLabel(askOpen))}</b> for editing? You have an unsaved ${esc(D.pair || "new")} trade here.</p><div class="fb"><button type="button" class="btn pri" data-act="asksave" ${busy ? "disabled" : ""}>Save it first</button><button type="button" class="btn" data-act="askdiscard">Discard it</button><button type="button" class="lnk" data-act="askcancel">Cancel</button></div></div>`;
 const sel = (k, opts, v, ph) =>
   `<select data-k="${k}"><option value="">${ph}</option>${opts.map(o => `<option ${o === v ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
 const f = (l, h) => `<div class="f"><span>${l}</span>${h}</div>`;
@@ -572,11 +580,12 @@ function renderInner() {
       link = s[2] && D.links[s[0]];
     panel.innerHTML = `${HEAD}
     <div class="stp">${L.map(([k, l], i) => `<button type="button" class="st${i === step ? " on" : ""}${i < step ? " done" : ""}" data-go="${i}">${esc(l)}</button>`).join("")}</div>
+    ${editDoc ? `<p class="editl"><span>Editing ${esc(tradeLabel(editDoc))}</span><button type="button" class="lnk" data-act="canceledit">Cancel edit</button></p>` : ""}${askOpen ? askBox() : ""}
     <div class="body">${step ? posLine() : ""}${s[2] ? `<p class="hint">Chart is on ${esc(s[1])}. Position it, fill this in, then Continue grabs the chart.</p>` : ""}${B[s[0]]()}${s[0] === dateStep() && !INV() ? f(`Date <button type="button" class="lnk inl" data-act="readdate" title="From the Long/Short position, or the replay date">⟳ from chart</button>`, `<input type="date" data-k="date" value="${esc(D.date)}">`) : ""}
       ${link ? `<div class="shot cur"><img src="${tvImg(link.match(/x\/([^/]+)/)[1])}" alt="${esc(s[1])} chart"><button type="button" class="rm" data-rm="${s[0]}" title="Remove">×</button></div>` : ""}</div>
     <div class="foot">${gradeLine()}${msg ? `<p class="msg">${esc(msg)}</p>` : ""}<div class="fb"><button type="button" class="lnk" data-act="stoplog" title="Stop for now. The trade is kept, so you can continue later.">Stop</button>${step ? `<button type="button" class="btn ghost" data-act="back" ${busy ? "disabled" : ""}>Back</button>` : ""}<span class="sp"></span>
       ${s.failed || (s[2] && msg && /didn't come/.test(msg)) ? `<button type="button" class="lnk" data-act="skip">Continue without chart</button>` : ""}
-      <button type="button" class="btn pri" data-act="next" ${busy ? "disabled" : ""}${s[2] && !last ? ' title="Takes a snapshot of this chart, then continues"' : ""}>${busy ? (last ? "Saving…" : "Grabbing…") : last ? "Save trade" : s[2] ? CAM + "Continue" : "Continue"}</button></div>
+      <button type="button" class="btn pri" data-act="next" ${busy ? "disabled" : ""}${s[2] && !last && !(editDoc && link) ? ' title="Takes a snapshot of this chart, then continues"' : ""}>${busy ? (last ? "Saving…" : "Grabbing…") : last ? (editDoc ? "Save changes" : "Save trade") : s[2] && !(editDoc && link) ? CAM + "Continue" : "Continue"}</button></div>
 </div>`;
   }
   const b = panel.querySelector(".body");

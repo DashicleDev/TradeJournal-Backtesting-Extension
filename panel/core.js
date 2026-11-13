@@ -101,7 +101,9 @@ let mkt = "fx",
   view = "steps",
   step = 0,
   logging = false,
-  snapWait = null;
+  snapWait = null,
+  editDoc = null, // the saved trade being edited (opened from the journal's Replay link), else null
+  askOpen = null; // a trade waiting to open while an unsaved new trade is in the panel
 
 /* ---------- look (same themes and accents as the journal) ---------- */
 const THEMES = {
@@ -223,6 +225,7 @@ const load = async () => {
     "tmode",
     "lastAccount",
     "mkt",
+    "edit",
   ]);
   mini = !!o.mini;
   tmode = o.tmode === "live" ? "live" : "backtest";
@@ -237,6 +240,7 @@ const load = async () => {
   view = "steps";
   step = o.step || 0;
   if (o.draft) D = { ...blank(), ...o.draft };
+  editDoc = o.edit || null;
   if (!D.account && o.lastAccount) D.account = o.lastAccount;
   if (!D.project && o.lastProject) D.project = o.lastProject;
   collapsed = o.collapsed || {};

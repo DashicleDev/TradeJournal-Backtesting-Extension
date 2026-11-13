@@ -23,7 +23,7 @@
   if (window.__tjHook) return;
   window.__tjHook = true;
   // read now, at page start, before TradingView rewrites the address
-  const rpDay = (/#tj-replay=(\d{4}-\d{2}-\d{2})$/.exec(location.hash) || [])[1];
+  const rpDay = (/#tj-replay=(\d{4}-\d{2}-\d{2})(?:&|$)/.exec(location.hash) || [])[1];
   const ID = /^[A-Za-z0-9]{6,12}$/;
   const fromText = t => {
     if (typeof t !== "string") return null;
@@ -786,7 +786,7 @@
   };
   if (rpDay) replayAt(rpDay);
   addEventListener("hashchange", () => {
-    const d = (/#tj-replay=(\d{4}-\d{2}-\d{2})$/.exec(location.hash) || [])[1];
+    const d = (/#tj-replay=(\d{4}-\d{2}-\d{2})(?:&|$)/.exec(location.hash) || [])[1];
     if (d) replayAt(d);
   });
 })();

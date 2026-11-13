@@ -158,16 +158,28 @@ const handlers = {
     return true;
   },
   // The journal's Replay link: open it in the TradingView chart tab you already have (keeping its layout), else a new tab.
+  // With &tj-trade=<id> the trade is also opened in that tab's panel for editing (see openTrade).
   async replay({ url }) {
-    const u = new URL(url);
-    if (u.hostname !== "www.tradingview.com" || !u.pathname.startsWith("/chart/") || !/^#tj-replay=\d{4}-\d{2}-\d{2}$/.test(u.hash))
-      throw new Error("Not a replay link");
+    const u = new URL(url),
+      m = /^#tj-replay=\d{4}-\d{2}-\d{2}(?:&tj-trade=([A-Za-z0-9_-]{1,40}))?$/.exec(u.hash);
+    if (u.hostname !== "www.tradingview.com" || !u.pathname.startsWith("/chart/") || !m) throw new Error("Not a replay link");
+    const pending = tab => (m[1] ? set({ openTrade: { id: m[1], tab: tab.id, at: Date.now() } }) : null);
     const tabs = await chrome.tabs.query({ url: "https://*.tradingview.com/chart/*" });
     const tab = tabs.find(t => t.active) || tabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
-    if (!tab) return void (await chrome.tabs.create({ url }));
+    if (!tab) return void (await pending(await chrome.tabs.create({ url })));
+    await pending(tab);
     const cur = new URL(tab.url);
     await chrome.tabs.update(tab.id, { url: cur.origin + cur.pathname + u.search + u.hash, active: true });
     await chrome.windows.update(tab.windowId, { focused: true });
+  },
+  // The trade a Replay link asked to open, for the tab it was opened in only (2 minutes, then it's dropped).
+  async openTrade(msg, sender) {
+    const o = await get("openTrade");
+    if (!o || !sender.tab || o.tab !== sender.tab.id) return null;
+    await chrome.storage.local.remove("openTrade");
+    if (Date.now() - o.at > 120000) return null;
+    const rows = await rest("docs?select=data&id=eq." + encodeURIComponent(o.id));
+    return (rows[0] && rows[0].data) || null;
   },
 };
 
@@ -178,7 +190,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   }
   const h = handlers[msg && msg.type];
   if (!h) return false;
-  h(msg).then(
+  h(msg, sender).then(
     v => reply({ ok: true, v }),
     e => reply({ ok: false, error: String((e && e.message) || e) })
   );
