@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.17 — 2026-11-13
+
+- Fix: re-dragging the position's right edge on the Result step still didn't update the close date. The check skipped itself whenever a trade was being logged, which is always the case on the Result step.
+
 ## 1.4.16 — 2026-11-13
 
 - Fix: re-dragging the position's right edge on the Result step didn't update the close date. It's now checked as soon as you let go of the drag (and still when the mouse comes back to the panel).

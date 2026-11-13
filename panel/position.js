@@ -106,7 +106,8 @@ let posEdge = "", // the right edge's day when we last read the position
   edgeBusy = false;
 async function edgeCheck() {
   const on = steps()[step] && ["result", "exec"].includes(steps()[step][0]);
-  if (edgeBusy || !on || panel.hidden || !user || view !== "steps" || logging || settings || !D.posId) return;
+  // "logging" = a trade is being logged (you're in the steps), so it must be on here
+  if (edgeBusy || !on || panel.hidden || !user || view !== "steps" || !logging || settings || !D.posId) return;
   edgeBusy = true;
   try {
     await getPos();
