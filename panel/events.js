@@ -20,7 +20,7 @@ root.addEventListener("submit", async e => {
 });
 root.addEventListener("click", async e => {
   const box = e.target.closest("[data-dd]");
-  if (box && !e.target.closest("[data-unw],[data-und],[data-exun]")) {
+  if (box && !e.target.closest("[data-unw],[data-und],[data-unh],[data-exun]")) {
     dd = dd === box.dataset.dd ? null : box.dataset.dd;
     return render();
   }
@@ -312,6 +312,17 @@ root.addEventListener("click", async e => {
     keep();
     return render();
   }
+  if (d.addh) {
+    D[d.addh] = true;
+    dd = null;
+    keep();
+    return render();
+  }
+  if (d.unh) {
+    D[d.unh] = false;
+    keep();
+    return render();
+  }
   if (d.und) {
     D.dPros = D.dPros.filter(x => x !== d.und);
     keep();
@@ -390,9 +401,7 @@ root.addEventListener("change", async e => {
   }
   if (k === "entryc") {
     Object.assign(D, entrySplit(e.target.value));
-    if (D.struct !== "som") D.room = false;
-    if (!chanOk(D.entry4h)) D.channel = false;
-    if (!engOk(D.entry4h)) D.engulf = false;
+    HPROS.forEach(([p]) => hproOk(p, D.entry4h, D.struct) || (D[p] = false));
   } else D[k] = e.target.value;
   // typing fields: no re-render, so a click that caused the blur (e.g. Save) isn't lost
   if (e.target.tagName === "TEXTAREA" || e.target.type === "number" || e.target.type === "date" || k === "pair") {

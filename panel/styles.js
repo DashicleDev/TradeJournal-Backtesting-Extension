@@ -33,7 +33,7 @@ input,select,textarea{width:100%;font-size:13px;color:var(--ink);background:var(
 input:focus,select:focus,textarea:focus{border-color:var(--acc)}textarea{resize:vertical}
 .segs{display:flex;flex-wrap:wrap;gap:4px}
 .sg{border:1px solid var(--line);background:var(--in);color:var(--ink);border-radius:8px;padding:4px 8px;font-size:12.5px;cursor:pointer}
-.sg:disabled{opacity:.4;cursor:default}.sg.on{background:var(--acc);border-color:var(--acc);color:#fff}.sg.on.pos{background:var(--good);border-color:var(--good)}.sg.on.neg{background:var(--bad);border-color:var(--bad)}
+.sg.on{background:var(--acc);border-color:var(--acc);color:#fff}.sg.on.pos{background:var(--good);border-color:var(--good)}.sg.on.neg{background:var(--bad);border-color:var(--bad)}
 .sec{border:1px solid var(--line);border-radius:8px}
 .sh{width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;color:var(--ink);padding:8px 10px;cursor:pointer;text-align:left}
 .sh b{font-size:12px;color:var(--mut)}.sh em{font-style:normal;color:var(--ink);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sh i{font-style:normal;color:var(--mut)}
@@ -44,7 +44,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--acc)}textarea{resize:
 .mchip{display:inline-flex;align-items:center;gap:4px;border-radius:6px;padding:2px 4px 2px 8px;font-size:12px}.mchip{background:color-mix(in srgb,var(--acc) 16%,transparent);color:var(--ink)}.mchip.for{background:color-mix(in srgb,var(--good) 18%,transparent);color:var(--good)}.mchip.against{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
 .mchip button{background:none;border:0;color:inherit;cursor:pointer;font-size:13px;line-height:1;padding:0 4px}
 .mslist{margin-top:4px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:4px;display:grid;box-shadow:0 10px 30px rgba(0,0,0,.4);max-height:220px;overflow:auto}
-.mslist button{background:none;border:0;color:var(--ink);text-align:left;padding:8px 8px;border-radius:6px;font-size:13px;cursor:pointer}.mslist button:hover{background:var(--soft)}
+.mslist button{background:none;border:0;color:var(--ink);text-align:left;padding:8px 8px;border-radius:6px;font-size:13px;cursor:pointer}.mslist button:hover{background:var(--soft)}.mslist button:disabled{opacity:.4;cursor:default;background:none}
 .chip{border:1px solid var(--line);background:var(--in);color:var(--ink);border-radius:999px;padding:4px 8px;font-size:12px;cursor:pointer}
 .chip.for{background:color-mix(in srgb,var(--good) 18%,transparent);border-color:var(--good);color:var(--good)}.chip.against{background:color-mix(in srgb,var(--bad) 16%,transparent);border-color:var(--bad);color:var(--bad)}
 .hint{margin:0;color:var(--mut);font-size:12px;line-height:1.4}

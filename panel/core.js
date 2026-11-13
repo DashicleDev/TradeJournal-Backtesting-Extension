@@ -34,6 +34,14 @@ const hasStruct = e => e === "Reversal" || e === "Continuation" || e === "Patter
 // 4H pros: Channel goes with Reversal, Continuation and Engulfing entries; the Engulfing candle pro goes with Reversal and Continuation
 const chanOk = e => e === "Reversal" || e === "Continuation" || e === "Engulfing Candle";
 const engOk = e => e === "Reversal" || e === "Continuation";
+const roomOk = (e, s) => s === "som" || e === "Engulfing Candle";
+// the 4H pros, keyed by the trade field each one is saved in; hproOk: does the pro fit this entry (and structure)
+const HPROS = [
+  ["engulf", "Engulfing candle"],
+  ["channel", "Channel"],
+  ["room", "Room"],
+];
+const hproOk = (k, e, s) => (k === "engulf" ? engOk(e) : k === "channel" ? chanOk(e) : roomOk(e, s));
 // 4H entry dropdown: Reversal and Continuation come with BoS or SoM; a trade still saves entry4h and struct as two fields
 const ENTRY_OPTS = [
   ["Reversal|bos", "Reversal with BoS"],

@@ -80,7 +80,7 @@ function renderInner() {
     hasStruct(D.entry4h) && D.struct && D.struct.replace("bos", "BoS").replace("som", "SoM"),
     D.engulf && "Engulfing candle",
     D.channel && "Channel",
-    D.struct === "som" && D.room && "Room",
+    roomOk(D.entry4h, D.struct) && D.room && "Room",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -373,7 +373,14 @@ function renderInner() {
       )}`,
         h4: () => `
       <div class="row2">${f("4H entry", `<select data-k="entryc">${entryOptHtml(entryKey(D.entry4h, D.struct))}</select>`)}${f("Market structure", seg("hMs", MS, D.hMs))}</div>
-      ${f("4H pros", `<div class="segs">${[["engulf", "Engulfing candle", engOk(D.entry4h)], ["channel", "Channel", chanOk(D.entry4h)], ["room", "Room", D.struct === "som"]].map(([k, l, ok]) => `<button type="button" class="sg${D[k] && ok ? " on" : ""}" data-tog="${k}"${ok ? "" : " disabled"}>${l}</button>`).join("")}</div>`)}
+      ${f(
+        "4H pros",
+        (() => {
+          const on = HPROS.filter(([k]) => D[k]),
+            rest = HPROS.filter(([k]) => !D[k]);
+          return `<div class="ms for"><div class="msbox" data-dd="hpros">${on.map(([k, l]) => `<span class="mchip for">${esc(l)}<button type="button" data-unh="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose pros…</span>`}<i>▾</i></div>${dd === "hpros" ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addh="${k}"${hproOk(k, D.entry4h, D.struct) ? "" : " disabled"}>${esc(l)}</button>`).join("") : `<span class="msph">All pros used</span>`}</div>` : ""}</div>`;
+        })()
+      )}
       ${f("Scale-in", `<div class="segs"><button type="button" class="sg${D.scaleIn ? " on" : ""}" data-tog="scaleIn">Scale-in</button></div>`)}
       ${
         D.entry4h === "Engulfing Candle"

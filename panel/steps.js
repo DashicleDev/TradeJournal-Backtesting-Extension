@@ -270,7 +270,7 @@ function toDoc() {
     bos: bos ? "ja" : som ? "nee" : "",
     dfs: "",
     som: som && D.entry4h === "Reversal" ? "ja" : "",
-    room: som ? (D.room ? "ja" : "nee") : "",
+    room: roomOk(D.entry4h, st) ? (D.room ? "ja" : "nee") : "",
     ecTf: D.entry4h === "Engulfing Candle" ? D.ecTf : "",
     shots: {},
     shotLinks: { ...D.links },
