@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.20 — 2026-11-13
+
+- Fix: the journal's Replay ↗ link started bar replay at TradingView's first available date ("Data point unavailable") instead of the trade's date. The date was sent in seconds; TradingView expects milliseconds.
+- **Replay opens in your TradingView tab.** A Replay ↗ click in the journal now loads the trade's chart in the TradingView chart tab you already have open (the active one, else the one you used last), keeping its layout, and switches to it. No TradingView tab open: a new one opens. Ctrl/middle-click still opens a new tab. (New: a small script on the journal site.)
+
 ## 1.4.19 — 2026-11-13
 
 - Opening a chart from the journal's **Replay ↗** button starts bar replay at the trade's date (00:00 UTC). Needs a TradingView account with bar replay.

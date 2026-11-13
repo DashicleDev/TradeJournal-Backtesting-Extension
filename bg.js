@@ -157,6 +157,18 @@ const handlers = {
     });
     return true;
   },
+  // The journal's Replay link: open it in the TradingView chart tab you already have (keeping its layout), else a new tab.
+  async replay({ url }) {
+    const u = new URL(url);
+    if (u.hostname !== "www.tradingview.com" || !u.pathname.startsWith("/chart/") || !/^#tj-replay=\d{4}-\d{2}-\d{2}$/.test(u.hash))
+      throw new Error("Not a replay link");
+    const tabs = await chrome.tabs.query({ url: "https://*.tradingview.com/chart/*" });
+    const tab = tabs.find(t => t.active) || tabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
+    if (!tab) return void (await chrome.tabs.create({ url }));
+    const cur = new URL(tab.url);
+    await chrome.tabs.update(tab.id, { url: cur.origin + cur.pathname + u.search + u.hash, active: true });
+    await chrome.windows.update(tab.windowId, { focused: true });
+  },
 };
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {

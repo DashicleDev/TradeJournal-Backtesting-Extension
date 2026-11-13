@@ -767,7 +767,8 @@
   });
   // ---------- open in bar replay from the journal ----------
   // Once the chart and its replay are ready, start bar replay at the trade's date (00:00 UTC). Tries for a minute.
-  if (rpDay) {
+  // Also when only the #tj-replay part changes (the extension reused a tab that already showed this pair).
+  const replayAt = day => {
     history.replaceState(history.state, "", location.pathname + location.search); // a reload doesn't jump again
     const until = Date.now() + 60000;
     const go = async () => {
@@ -775,11 +776,17 @@
         const api = window.TradingViewApi;
         if (api && api.activeChart && api.replayApi) {
           const rp = await (window.__tjRp || (window.__tjRp = api.replayApi()));
-          if (rp.isReplayAvailable().value()) return void (await rp.selectDate(Date.parse(rpDay + "T00:00:00Z") / 1000));
+          // selectDate takes milliseconds (it rounds to whole seconds itself)
+          if (rp.isReplayAvailable().value()) return void (await rp.selectDate(Date.parse(day + "T00:00:00Z")));
         }
       } catch {}
       if (Date.now() < until) setTimeout(go, 1000);
     };
     setTimeout(go, 1500);
-  }
+  };
+  if (rpDay) replayAt(rpDay);
+  addEventListener("hashchange", () => {
+    const d = (/#tj-replay=(\d{4}-\d{2}-\d{2})$/.exec(location.hash) || [])[1];
+    if (d) replayAt(d);
+  });
 })();
