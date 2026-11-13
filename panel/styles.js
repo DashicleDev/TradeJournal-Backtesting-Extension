@@ -33,7 +33,7 @@ input,select,textarea{width:100%;font-size:13px;color:var(--ink);background:var(
 input:focus,select:focus,textarea:focus{border-color:var(--acc)}textarea{resize:vertical}
 .segs{display:flex;flex-wrap:wrap;gap:4px}
 .sg{border:1px solid var(--line);background:var(--in);color:var(--ink);border-radius:8px;padding:4px 8px;font-size:12.5px;cursor:pointer}
-.sg.on{background:var(--acc);border-color:var(--acc);color:#fff}.sg.on.pos{background:var(--good);border-color:var(--good)}.sg.on.neg{background:var(--bad);border-color:var(--bad)}
+.sg:disabled{opacity:.4;cursor:default}.sg.on{background:var(--acc);border-color:var(--acc);color:#fff}.sg.on.pos{background:var(--good);border-color:var(--good)}.sg.on.neg{background:var(--bad);border-color:var(--bad)}
 .sec{border:1px solid var(--line);border-radius:8px}
 .sh{width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;color:var(--ink);padding:8px 10px;cursor:pointer;text-align:left}
 .sh b{font-size:12px;color:var(--mut)}.sh em{font-style:normal;color:var(--ink);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sh i{font-style:normal;color:var(--mut)}

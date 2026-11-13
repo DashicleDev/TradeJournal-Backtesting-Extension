@@ -82,6 +82,8 @@ function draft() {
     slPips: maybe(0.5, "25"),
     tpPips: maybe(0.5, "50"),
     missed: rnd() < 0.15,
+    channel: rnd() < 0.3,
+    engulf: rnd() < 0.3,
   };
 }
 

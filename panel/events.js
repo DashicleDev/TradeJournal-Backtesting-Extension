@@ -388,7 +388,12 @@ root.addEventListener("change", async e => {
     msg = p ? "" : posWhy;
     return render();
   }
-  D[k] = e.target.value;
+  if (k === "entryc") {
+    Object.assign(D, entrySplit(e.target.value));
+    if (D.struct !== "som") D.room = false;
+    if (!chanOk(D.entry4h)) D.channel = false;
+    if (!engOk(D.entry4h)) D.engulf = false;
+  } else D[k] = e.target.value;
   // typing fields: no re-render, so a click that caused the blur (e.g. Save) isn't lost
   if (e.target.tagName === "TEXTAREA" || e.target.type === "number" || e.target.type === "date" || k === "pair") {
     if (k === "pair") {
@@ -400,10 +405,6 @@ root.addEventListener("change", async e => {
   }
   if (k === "wPat") D.wPatSub = "";
   if (k === "concept") D.sub = "";
-  if (k === "entry4h" && !hasStruct(D.entry4h)) {
-    D.struct = "";
-    D.room = false;
-  }
   if (k === "pair") D.pair = pairOf(D.pair);
   if (k === "project") store({ lastProject: D.project });
   if (k === "account") store({ lastAccount: D.account });

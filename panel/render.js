@@ -78,7 +78,9 @@ function renderInner() {
     D.entry4h,
     D.hMs && "MS " + (D.hMs === "for" ? "✓" : "✗"),
     hasStruct(D.entry4h) && D.struct && D.struct.replace("bos", "BoS").replace("som", "SoM"),
-    D.entry4h === "Reversal" && D.channel && "Channel",
+    D.engulf && "Engulfing candle",
+    D.channel && "Channel",
+    D.struct === "som" && D.room && "Room",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -370,23 +372,8 @@ function renderInner() {
         })()
       )}`,
         h4: () => `
-      <div class="row2">${f("4H entry", sel("entry4h", P.plan.entries, D.entry4h, "Choose…"))}${f("Market structure", seg("hMs", MS, D.hMs))}</div>
-      ${
-        hasStruct(D.entry4h)
-          ? `<div class="row2">${f(
-              "4H structure",
-              seg(
-                "struct",
-                [
-                  ["bos", "BoS"],
-                  ["som", "SoM"],
-                ],
-                D.struct
-              )
-            )}${D.struct === "som" ? f("4H room", `<div class="segs"><button type="button" class="sg${D.room ? " on" : ""}" data-tog="room">Room</button></div>`) : ""}</div>`
-          : ""
-      }
-      ${D.entry4h === "Reversal" ? f("Extra confirmation", `<div class="segs"><button type="button" class="sg${D.channel ? " on" : ""}" data-tog="channel">Channel</button></div>`) : ""}
+      <div class="row2">${f("4H entry", `<select data-k="entryc">${entryOptHtml(entryKey(D.entry4h, D.struct))}</select>`)}${f("Market structure", seg("hMs", MS, D.hMs))}</div>
+      ${f("4H pros", `<div class="segs">${[["engulf", "Engulfing candle", engOk(D.entry4h)], ["channel", "Channel", chanOk(D.entry4h)], ["room", "Room", D.struct === "som"]].map(([k, l, ok]) => `<button type="button" class="sg${D[k] && ok ? " on" : ""}" data-tog="${k}"${ok ? "" : " disabled"}>${l}</button>`).join("")}</div>`)}
       ${f("Scale-in", `<div class="segs"><button type="button" class="sg${D.scaleIn ? " on" : ""}" data-tog="scaleIn">Scale-in</button></div>`)}
       ${
         D.entry4h === "Engulfing Candle"

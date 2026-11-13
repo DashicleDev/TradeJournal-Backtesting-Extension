@@ -31,6 +31,30 @@ const SLOTS = [
   ["wk", "Weekly"],
 ];
 const hasStruct = e => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
+// 4H pros: Channel goes with Reversal, Continuation and Engulfing entries; the Engulfing candle pro goes with Reversal and Continuation
+const chanOk = e => e === "Reversal" || e === "Continuation" || e === "Engulfing Candle";
+const engOk = e => e === "Reversal" || e === "Continuation";
+// 4H entry dropdown: Reversal and Continuation come with BoS or SoM; a trade still saves entry4h and struct as two fields
+const ENTRY_OPTS = [
+  ["Reversal|bos", "Reversal with BoS"],
+  ["Reversal|som", "Reversal with SoM"],
+  ["Continuation|bos", "Continuation with BoS"],
+  ["Continuation|som", "Continuation with SoM"],
+  ["Engulfing Candle", "Engulfing candle"],
+  ["Deceleration", "Deceleration"],
+];
+const entryKey = (e, s) => (e || "") + (e && s ? "|" + s : "");
+const entrySplit = v => {
+  const [entry4h, struct] = String(v || "").split("|");
+  return { entry4h, struct: struct || "" };
+};
+// a saved trade whose entry isn't one of the six (no BoS/SoM logged, Pattern in Pattern) still shows what it was
+const entryOpts = k =>
+  !k || ENTRY_OPTS.some(o => o[0] === k)
+    ? ENTRY_OPTS
+    : [...ENTRY_OPTS, [k, k.replace("|bos", " with BoS").replace("|som", " with SoM")]];
+const entryOptHtml = k =>
+  `<option value="">Choose…</option>${entryOpts(k).map(([v, l]) => `<option value="${esc(v)}"${v === k ? " selected" : ""}>${esc(l)}</option>`).join("")}`;
 let dd = null,
   mini = false,
   lastEmail = "",
@@ -66,7 +90,8 @@ const blank = () => ({
   struct: "",
   room: false,
   scaleIn: false,
-  channel: false, // extra confirmation on a Reversal entry
+  channel: false, // 4H pro: Reversal, Continuation and Engulfing entries
+  engulf: false, // 4H pro: an engulfing candle on a Reversal or Continuation entry
   ecTf: "",
   links: {},
   outcome: "",

@@ -23,7 +23,7 @@ const journal = J.api;
 // the extension: panel/grade.js with the plan.json the journal publishes
 const plan = JSON.parse(read(JOURNAL, "plan.json"));
 const E = vm.createContext({ P: plan, INV: () => false, esc: s => String(s), cur: null });
-vm.runInContext("const toDoc = () => cur;" + read(EXT, "panel", "grade.js"), E);
+vm.runInContext("const chanOk = e => e === \"Reversal\" || e === \"Continuation\" || e === \"Engulfing Candle\"; const toDoc = () => cur;" + read(EXT, "panel", "grade.js"), E);
 vm.runInContext("jFeat = { grade: true }; this.api = { liveGrade };", E);
 const ext = E.api;
 
@@ -70,6 +70,7 @@ function trade() {
     dMs: pick(["", "for", "against"]),
     hMs: pick(["", "for", "against"]),
     channel: rnd() < 0.3,
+    engulf: rnd() < 0.3,
     dPros: rnd() < 0.8 ? ["fc", "dcc", "sd"].filter(() => rnd() < 0.4) : undefined,
   };
 }
