@@ -99,22 +99,32 @@ async function fromPos(force = []) {
   keep();
   return p;
 }
-// On the result step, a re-dragged right edge moves the close date with it. Checked when the mouse comes back
-// to the panel (after the drag), so no timer runs; a date you type yourself stays until the edge moves again.
-let posEdge = ""; // the right edge's day when we last read the position
-panel.addEventListener("pointerenter", async () => {
+// On the result step, a re-dragged right edge moves the close date with it. Checked when a drag on the chart ends
+// (mouse released) and when the mouse comes back to the panel, so no timer runs; a date you type yourself stays
+// until the edge moves again.
+let posEdge = "", // the right edge's day when we last read the position
+  edgeBusy = false;
+async function edgeCheck() {
   const on = steps()[step] && ["result", "exec"].includes(steps()[step][0]);
-  if (!on || !user || view !== "steps" || logging || settings || !D.posId) return;
-  await getPos();
-  const p = curPos(),
-    t1 = p ? day(p.t1) : "";
-  if (t1 && t1 !== posEdge && t1 !== D.closeDate) {
-    D.closeDate = t1;
-    keep();
-    render();
+  if (edgeBusy || !on || panel.hidden || !user || view !== "steps" || logging || settings || !D.posId) return;
+  edgeBusy = true;
+  try {
+    await getPos();
+    const p = curPos(),
+      t1 = p ? day(p.t1) : "";
+    if (t1 && t1 !== posEdge && t1 !== D.closeDate) {
+      D.closeDate = t1;
+      keep();
+      render();
+    }
+    if (t1) posEdge = t1;
+  } finally {
+    edgeBusy = false;
   }
-  if (t1) posEdge = t1;
-});
+}
+panel.addEventListener("pointerenter", edgeCheck);
+// capture phase on window, so the chart can't swallow it; a short wait lets TradingView store the new edge first
+addEventListener("pointerup", () => setTimeout(edgeCheck, 250), true);
 const replayDate = async () => {
   await ask();
   return dateOf(info.replay);

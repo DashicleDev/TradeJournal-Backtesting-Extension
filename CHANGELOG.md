@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.16 — 2026-11-13
+
+- Fix: re-dragging the position's right edge on the Result step didn't update the close date. It's now checked as soon as you let go of the drag (and still when the mouse comes back to the panel).
+
 ## 1.4.15 — 2026-11-13
 
 - **Close date follows the position.** Going to the Result step takes the close date from the Long/Short position's right edge (it used to only fill an empty date), and while you're on the Result step, re-dragging that edge updates the close date as soon as your mouse is back on the panel (no background timer). A date you type yourself stays until you move the edge again.
