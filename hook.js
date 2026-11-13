@@ -15,11 +15,15 @@
  *                                      snap  (a TradingView snapshot link was created)
  *                                      close (replay reached a daily / weekly close)
  *
+ * The journal's "Replay" link opens the chart with #tj-replay=YYYY-MM-DD; this file then starts bar replay there.
+ *
  * It only reads the chart and drives TradingView's own controls; it never sends anything to the network.
  */
 (() => {
   if (window.__tjHook) return;
   window.__tjHook = true;
+  // read now, at page start, before TradingView rewrites the address
+  const rpDay = (/#tj-replay=(\d{4}-\d{2}-\d{2})$/.exec(location.hash) || [])[1];
   const ID = /^[A-Za-z0-9]{6,12}$/;
   const fromText = t => {
     if (typeof t !== "string") return null;
@@ -761,4 +765,21 @@
     } catch {}
     window.postMessage({ __tj: "info", ...out }, location.origin);
   });
+  // ---------- open in bar replay from the journal ----------
+  // Once the chart and its replay are ready, start bar replay at the trade's date (00:00 UTC). Tries for a minute.
+  if (rpDay) {
+    history.replaceState(history.state, "", location.pathname + location.search); // a reload doesn't jump again
+    const until = Date.now() + 60000;
+    const go = async () => {
+      try {
+        const api = window.TradingViewApi;
+        if (api && api.activeChart && api.replayApi) {
+          const rp = await (window.__tjRp || (window.__tjRp = api.replayApi()));
+          if (rp.isReplayAvailable().value()) return void (await rp.selectDate(Date.parse(rpDay + "T00:00:00Z") / 1000));
+        }
+      } catch {}
+      if (Date.now() < until) setTimeout(go, 1000);
+    };
+    setTimeout(go, 1500);
+  }
 })();

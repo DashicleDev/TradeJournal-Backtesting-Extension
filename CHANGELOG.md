@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.19 — 2026-11-13
+
+- Opening a chart from the journal's **Replay ↗** button starts bar replay at the trade's date (00:00 UTC). Needs a TradingView account with bar replay.
+
 ## 1.4.18 — 2026-11-13
 
 - **The opening date follows the position too.** From the 4H step on (Execution for invest), moving the Long/Short position's left edge updates the date, and moving the right edge updates the close date, after a mouse drag or an arrow-key nudge. A date you type yourself stays until its edge moves.
