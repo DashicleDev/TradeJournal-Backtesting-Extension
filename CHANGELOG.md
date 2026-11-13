@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.21 — 2026-11-13
+
+- **Calmer panel (unslop polish)**: section headers and titles in sentence case instead of spaced capitals, lighter headings, spacing on a 4px grid and one corner radius for controls. No coloured glow under the TJ button or around the candle-close alert. Continue on a timeframe step shows a camera line icon instead of the 📷 emoji (hover: takes a snapshot, then continues). Polish done with unslop by Damir Sokolovsky (@heydamir), CC BY 4.0.
+
 ## 1.4.20 — 2026-11-13
 
 - Fix: the journal's Replay ↗ link started bar replay at TradingView's first available date ("Data point unavailable") instead of the trade's date. The date was sent in seconds; TradingView expects milliseconds.
