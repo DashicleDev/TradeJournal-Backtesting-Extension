@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.27 — 2026-11-13
+
+- **Replay from the journal opens in its own chart window.** The journal opens the window itself, so nothing has to find your TradingView tab or be reloaded after the extension updates. The panel there reads the trade id from the address (`#tj-trade=`), opens it for editing, and the window closes after Save changes. The journal-side script (`replay-link.js`) and the tab search in the background script are gone. The trade opens on the Weekly step (before: Result). Needs journal 1.3.40.
+
 ## 1.4.22 — 2026-11-13
 
 - **Replay opens the trade in the panel for editing.** A Replay ↗ click in the journal (trade sheet or re-evaluate game) loads that trade into the panel on the Result step, in its own live or backtest mode, with "Editing EURUSD long · 6 Aug 2026" and Cancel edit at the top. Save changes updates the same trade; screenshots, reviews and other journal-only data stay. While editing, the panel doesn't read the chart's positions on its own (⟳ from chart still works), and Continue on a timeframe that already has its chart keeps it. If you were logging an unsaved new trade, the panel asks first: save it, discard it, or cancel.

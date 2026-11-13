@@ -397,6 +397,8 @@ async function save() {
     D = { ...blank(), project: pj, account: ac, pair: pr };
     store({ draft: D, lastProject: pj, lastAccount: ac });
     msg = `${o ? "Updated" : "Saved"} ${doc.pair}${INV() ? "" : " " + doc.dir}${doc.status === "missed" ? " (missed)" : ""} to ${LIVE() ? ac || "Live" : (projects.find(p => p.id === pj) || {}).name || "Backtest"}.`;
+    // the Replay window from the journal (a trade opened for editing) closes once it's saved
+    if (o && typeof window !== "undefined" && window.name === "tjreplay") setTimeout(() => window.close(), 700);
     if (view === "steps") {
       step = 0;
       logging = false;
@@ -498,7 +500,7 @@ async function openEdit(t) {
   msg = "";
   store({ edit: t, draft: D, mkt, tmode, logging });
   if (!open) toggle(true);
-  await goStep(steps().findIndex(x => x[0] === "result"));
+  await goStep(steps().findIndex(x => x[0] === "weekly"));
 }
 function cancelEdit() {
   editDoc = null;

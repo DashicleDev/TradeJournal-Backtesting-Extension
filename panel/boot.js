@@ -32,12 +32,13 @@ async function boot() {
   render();
   if (user) pickUpTrade();
 })();
-// A trade the journal's Replay link asked to open in this tab (bg.js keeps it for the tab it opened)
+// The journal's Replay window has #tj-trade=<id> in its address: open that trade here for editing (once; the id is then dropped)
 async function pickUpTrade() {
-  const t = await call("openTrade").catch(() => null);
+  const id = (/[#&]tj-trade=([A-Za-z0-9_-]{1,40})/.exec(location.hash) || [])[1];
+  if (!id) return;
+  history.replaceState(null, "", location.pathname + location.search + location.hash.replace(/&tj-trade=[^&]*/, ""));
+  const t = await call("openTrade", { id }).catch(() => null);
   if (t) requestOpen(t);
 }
-// same pair already open: the page doesn't reload, so watch for a new request
-chrome.storage.onChanged.addListener((ch, area) => {
-  if (area === "local" && ch.openTrade && ch.openTrade.newValue && user) pickUpTrade();
-});
+// the same chart window is reused for the next Replay: the page doesn't reload, only the address changes
+addEventListener("hashchange", () => user && pickUpTrade());

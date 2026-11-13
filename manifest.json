@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Trade Journal for TradingView",
   "short_name": "Trade Journal",
-  "version": "1.4.26",
+  "version": "1.4.27",
   "description": "Log backtest, live and invest trades from TradingView straight into your Trade Journal: analysis, result and W/D/4H snapshots.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -54,15 +54,6 @@
         "panel/render.js",
         "panel/events.js",
         "panel/boot.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://dashicledev.github.io/TradeJournal/*"
-      ],
-      "js": [
-        "replay-link.js"
       ],
       "run_at": "document_idle"
     }
