@@ -790,3 +790,9 @@
     if (d) replayAt(d);
   });
 })();
+
+// Keys, copy and paste inside the panel must not reach TradingView: it grabs Ctrl+C / Ctrl+V (and more) in the
+// capture phase and cancels them. This file runs before TradingView's own scripts, so its listener comes first.
+["keydown", "keyup", "keypress", "copy", "cut", "paste"].forEach(t =>
+  window.addEventListener(t, e => e.target && e.target.id === "tj-panel-host" && e.stopImmediatePropagation(), true)
+);
