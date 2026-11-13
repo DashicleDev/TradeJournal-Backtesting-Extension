@@ -24,6 +24,13 @@
   window.__tjHook = true;
   // read now, at page start, before TradingView rewrites the address
   const rpDay = (/#tj-replay=(\d{4}-\d{2}-\d{2})(?:&|$)/.exec(location.hash) || [])[1];
+  // the trade of a Replay window from the journal: kept for the panel, which starts later, after the address is rewritten
+  const rpTrade = (/[#&]tj-trade=([A-Za-z0-9_-]{1,40})/.exec(location.hash) || [])[1];
+  if (rpTrade) {
+    try {
+      sessionStorage.setItem("tjTrade", rpTrade);
+    } catch {}
+  }
   const ID = /^[A-Za-z0-9]{6,12}$/;
   const fromText = t => {
     if (typeof t !== "string") return null;

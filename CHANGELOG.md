@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.29 — 2026-11-13
+
+- **Fix: the Replay window opened the chart but not the trade in the panel.** TradingView rewrites the address while the page loads, so the trade id in it was already gone when the panel started. hook.js (which runs first) now keeps it for the panel.
+
 ## 1.4.28 — 2026-11-13
 
 - **Fix: the journal tells when the Replay window closes** (it can't see that itself: TradingView cuts the link to a window the journal opens), so the journal stays locked until then. The window is marked as a Replay window by the panel instead of by its name, which TradingView's page also drops. Needs journal 1.3.41.

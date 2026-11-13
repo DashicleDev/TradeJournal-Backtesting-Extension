@@ -34,8 +34,10 @@ async function boot() {
 })();
 // The journal's Replay window has #tj-trade=<id> in its address: open that trade here for editing (once; the id is then dropped)
 async function pickUpTrade() {
-  const id = (/[#&]tj-trade=([A-Za-z0-9_-]{1,40})/.exec(location.hash) || [])[1];
+  // TradingView rewrites the address while it loads, so hook.js keeps the id from the first address in sessionStorage
+  const id = (/[#&]tj-trade=([A-Za-z0-9_-]{1,40})/.exec(location.hash) || [])[1] || sessionStorage.getItem("tjTrade");
   if (!id) return;
+  sessionStorage.removeItem("tjTrade");
   history.replaceState(null, "", location.pathname + location.search + location.hash.replace(/&tj-trade=[^&]*/, ""));
   const t = await call("openTrade", { id }).catch(() => null);
   if (!t) return;
