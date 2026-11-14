@@ -15,7 +15,7 @@ const EXT = path.join(__dirname, ".."),
 const read = (...p) => fs.readFileSync(path.join(...p), "utf8");
 
 // the journal: core.js (PLAN) + plan.js (gradeOf), with grades switched on
-const J = vm.createContext({ document: {}, feat: () => true });
+const J = vm.createContext({ document: {}, feat: () => true, addEventListener: () => {} });
 vm.runInContext(read(JOURNAL, "js", "core.js") + read(JOURNAL, "js", "plan.js"), J);
 vm.runInContext("this.api = { gradeOf, grNorm, GR_CRIT, GR_DEF, entries: PLAN.entries, against: GR_AGAINST };", J);
 const journal = J.api;

@@ -376,9 +376,9 @@ function renderInner() {
       ${f(
         "4H pros",
         (() => {
-          const on = HPROS.filter(([k]) => D[k]),
-            rest = HPROS.filter(([k]) => !D[k]);
-          return `<div class="ms for"><div class="msbox" data-dd="hpros">${on.map(([k, l]) => `<span class="mchip for">${esc(l)}<button type="button" data-unh="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose pros…</span>`}<i>▾</i></div>${dd === "hpros" ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addh="${k}"${hproOk(k, D.entry4h, D.struct) ? "" : " disabled"}>${esc(l)}</button>`).join("") : `<span class="msph">All pros used</span>`}</div>` : ""}</div>`;
+          const on = HPROS.filter(([k]) => D[k] || engImplied(k, D.entry4h)),
+            rest = HPROS.filter(([k]) => !on.some(o => o[0] === k));
+          return `<div class="ms for"><div class="msbox" data-dd="hpros">${on.map(([k, l]) => `<span class="mchip for">${esc(l)}${engImplied(k, D.entry4h) ? "" : `<button type="button" data-unh="${k}" aria-label="Remove ${esc(l)}">×</button>`}</span>`).join("") || `<span class="msph">Choose pros…</span>`}<i>▾</i></div>${dd === "hpros" ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addh="${k}"${hproOk(k, D.entry4h, D.struct) ? "" : " disabled"}>${esc(l)}</button>`).join("") : `<span class="msph">All pros used</span>`}</div>` : ""}</div>`;
         })()
       )}
       ${f("Scale-in", `<div class="segs"><button type="button" class="sg${D.scaleIn ? " on" : ""}" data-tog="scaleIn">Scale-in</button></div>`)}

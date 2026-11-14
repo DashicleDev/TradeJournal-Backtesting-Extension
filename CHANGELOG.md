@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.30 — 2026-11-14
+
+- **An Engulfing candle entry shows the Engulfing candle pro ticked and locked** in the 4H pros (nothing extra is saved). Same in the journal 1.3.44. Test fix: `tests/grade-parity.js` stubs `addEventListener` for the journal's core.js.
+
 ## 1.4.29 — 2026-11-13
 
 - **Fix: the Replay window opened the chart but not the trade in the panel.** TradingView rewrites the address while the page loads, so the trade id in it was already gone when the panel started. hook.js (which runs first) now keeps it for the panel.

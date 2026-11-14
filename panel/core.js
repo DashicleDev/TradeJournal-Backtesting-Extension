@@ -42,6 +42,8 @@ const HPROS = [
   ["room", "Room"],
 ];
 const hproOk = (k, e, s) => (k === "engulf" ? engOk(e) : k === "channel" ? chanOk(e) : roomOk(e, s));
+// an Engulfing entry is the Engulfing candle: the pro shows ticked and locked, and nothing is saved for it
+const engImplied = (k, e) => k === "engulf" && e === "Engulfing Candle";
 // 4H entry dropdown: Reversal and Continuation come with BoS or SoM; a trade still saves entry4h and struct as two fields
 const ENTRY_OPTS = [
   ["Reversal|bos", "Reversal with BoS"],
