@@ -31,12 +31,11 @@ const SLOTS = [
   ["wk", "Weekly"],
 ];
 const hasStruct = e => e === "Reversal" || e === "Continuation" || e === "Pattern in Pattern";
-// the 4H pros, keyed by the trade field each one is saved in; all of them can be picked with any entry (your call).
+// the 4H pros, keyed by the trade field each one is saved in; they can be picked with any entry (your call). (Room was dropped in 1.3.46: old trades keep it, nothing shows or writes it.)
 // An Engulfing entry carries the Engulfing candle pro itself: it shows ticked and locked, and nothing is saved for it
 const HPROS = [
   ["engulf", "Engulfing candle"],
   ["channel", "Channel"],
-  ["room", "Room"],
 ];
 const engImplied = (k, e) => k === "engulf" && e === "Engulfing Candle";
 // 4H entry dropdown: Reversal and Continuation come with BoS or SoM; a trade still saves entry4h and struct as two fields
@@ -93,7 +92,6 @@ const blank = () => ({
   entry4h: "",
   hMs: "",
   struct: "",
-  room: false,
   scaleIn: false,
   channel: false, // 4H pro: Reversal, Continuation and Engulfing entries
   engulf: false, // 4H pro: an engulfing candle on a Reversal or Continuation entry

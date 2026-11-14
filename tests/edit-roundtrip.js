@@ -67,7 +67,6 @@ function draft() {
     entry4h: pick(ENTRIES),
     hMs: pick(["", "for", "against"]),
     struct: pick(["", "bos", "som"]),
-    room: rnd() < 0.5,
     scaleIn: rnd() < 0.3,
     channel: rnd() < 0.3,
     ecTf: pick(["", "1h", "2h"]),

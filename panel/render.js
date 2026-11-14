@@ -2,6 +2,12 @@
  * panel/render.js — Builds the panel's HTML for every screen: start screen, steps, settings.
  */
 /* ---------- render ---------- */
+// a pros dropdown over boolean fields of D (3M and Monthly pros in the invest steps): [field, label] pairs
+const proBox = (id, list) => {
+  const on = list.filter(([k]) => D[k]),
+    rest = list.filter(([k]) => !D[k]);
+  return `<div class="ms for"><div class="msbox" data-dd="${id}">${on.map(([k, l]) => `<span class="mchip for">${esc(l)}<button type="button" data-unh="${k}" aria-label="Remove ${esc(l)}">×</button></span>`).join("") || `<span class="msph">Choose pros…</span>`}<i>▾</i></div>${dd === id ? `<div class="mslist">${rest.length ? rest.map(([k, l]) => `<button type="button" data-addh="${k}">${esc(l)}</button>`).join("") : `<span class="msph">All pros used</span>`}</div>` : ""}</div>`;
+};
 const seg = (k, opts, v) =>
   `<div class="segs">${opts.map(([val, l]) => `<button type="button" class="sg${v === val ? " on" : ""}${val === "against" ? " neg" : val === "for" ? " pos" : ""}" data-k="${k}" data-v="${esc(val)}">${l}</button>`).join("")}</div>`;
 // camera line icon (lucide): Continue on a timeframe step also takes the chart snapshot
@@ -80,7 +86,6 @@ function renderInner() {
     hasStruct(D.entry4h) && D.struct && D.struct.replace("bos", "BoS").replace("som", "SoM"),
     D.engulf && "Engulfing candle",
     D.channel && "Channel",
-    D.room && "Room",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -186,9 +191,9 @@ function renderInner() {
           : ""
       }`,
     m3: () => `${f("Market structure", ms("s3Ms"))}
-      ${D.sPhase === "A" ? `<div class="segs">${chk("s3bm", "BM")}${chk("s3room", "Room")}</div>` : D.sPhase === "B" ? `<div class="segs">${chk("s3roomB", "Room")}</div>` : ""}`,
+      ${f("Pros", proBox("s3pros", [["s3bm", "BM"], ["s3cc", "Bullish CC"]]))}`,
     mo: () => `${f("Market structure", ms("s1Ms"))}
-      ${D.sPhase ? `<div class="segs">${D.sPhase === "A" ? chk("s1room", "Room") : ""}${chk("s1cc", "Bullish CC")}</div>` : ""}`,
+      ${f("Pros", proBox("s1pros", [["s1bm", "BM"], ["s1cc", "Bullish CC"]]))}`,
     wk: () =>
       `${f("Market structure", ms("swMs"))}${f(
         "Pattern",

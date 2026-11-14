@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.32 — 2026-11-14
+
+- **Room is gone from the panel's 4H pros** (journal 1.3.46). A trade opened for editing keeps the Room it already has.
+- **Invest: Room is gone from the 3M and Monthly steps, and both have a Pros dropdown with BM and Bullish CC** instead of the checkboxes (journal 1.3.46).
+
 ## 1.4.31 — 2026-11-14
 
 - **The 4H pros can be picked with any entry**, like the journal 1.3.45. Only Engulfing candle on an Engulfing entry is locked (it has it by itself).
