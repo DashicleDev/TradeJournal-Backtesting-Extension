@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.31 — 2026-11-14
+
+- **The 4H pros can be picked with any entry**, like the journal 1.3.45. Only Engulfing candle on an Engulfing entry is locked (it has it by itself).
+
 ## 1.4.30 — 2026-11-14
 
 - **An Engulfing candle entry shows the Engulfing candle pro ticked and locked** in the 4H pros (nothing extra is saved). Same in the journal 1.3.44. Test fix: `tests/grade-parity.js` stubs `addEventListener` for the journal's core.js.

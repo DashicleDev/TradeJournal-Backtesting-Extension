@@ -401,7 +401,7 @@ root.addEventListener("change", async e => {
   }
   if (k === "entryc") {
     Object.assign(D, entrySplit(e.target.value));
-    HPROS.forEach(([p]) => hproOk(p, D.entry4h, D.struct) || (D[p] = false));
+    if (engImplied("engulf", D.entry4h)) D.engulf = false;
   } else D[k] = e.target.value;
   // typing fields: no re-render, so a click that caused the blur (e.g. Save) isn't lost
   if (e.target.tagName === "TEXTAREA" || e.target.type === "number" || e.target.type === "date" || k === "pair") {
